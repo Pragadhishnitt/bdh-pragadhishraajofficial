@@ -1,3 +1,13 @@
 torch
 numpy
 requests
+networkx>=3.0
+python-louvain
+scikit-learn
+matplotlib
+seaborn
+wandb
+datasets
+transformers
+tiktoken
+tqdm
