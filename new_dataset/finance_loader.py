@@ -90,7 +90,6 @@ class FinanceDataset(IterableDataset):
             dataset = load_dataset(
                 "kurry/sp500_earnings_transcripts",
                 split=self.split,
-                trust_remote_code=True,
             )
             
             # Filter by sector and date range
