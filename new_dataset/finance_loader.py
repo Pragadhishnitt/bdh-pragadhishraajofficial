@@ -114,35 +114,41 @@ class FinanceDataset(IterableDataset):
     
     def _extract_year(self, item: Dict[str, Any]) -> Optional[int]:
         """Extract year from dataset item."""
-        # Handle various date field names
-        for field in ["date", "filing_date", "call_date", "year"]:
-            if field in item:
-                val = item[field]
-                if isinstance(val, int):
-                    return val
-                if isinstance(val, str) and len(val) >= 4:
-                    try:
-                        return int(val[:4])
-                    except ValueError:
-                        continue
+        # Dataset uses 'year' field directly as integer
+        if "year" in item:
+            val = item["year"]
+            if isinstance(val, int):
+                return val
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                pass
+        
+        # Fallback: try date field
+        if "date" in item and item["date"]:
+            try:
+                return int(str(item["date"])[:4])
+            except (ValueError, TypeError):
+                pass
         return None
     
     def _extract_date(self, item: Dict[str, Any]) -> str:
         """Extract sortable date string."""
-        for field in ["date", "filing_date", "call_date"]:
-            if field in item and item[field]:
-                return str(item[field])
+        # Build date from year/quarter or use date field
+        if "year" in item and "quarter" in item:
+            return f"{item['year']}-Q{item['quarter']}"
+        if "date" in item and item["date"]:
+            return str(item["date"])
         return "0000-00-00"
     
     def _matches_sector(self, item: Dict[str, Any]) -> bool:
         """Check if item matches the target sector."""
+        # NOTE: This dataset doesn't have sector info, so skip filtering
+        # All S&P 500 companies are included
         if self.sector is None:
             return True
-        for field in ["sector", "industry", "gics_sector"]:
-            if field in item:
-                if self.sector.lower() in str(item[field]).lower():
-                    return True
-        return False
+        # Dataset doesn't have sector field, accept all
+        return True
     
     def _create_fallback_data(self) -> list:
         """Create minimal fallback data for development/testing."""
@@ -181,7 +187,8 @@ class FinanceDataset(IterableDataset):
     def __iter__(self) -> Iterator[TranscriptSample]:
         """Yield transcript samples in chronological order."""
         for item in self._data:
-            text = item.get("text", item.get("transcript", ""))
+            # Dataset uses 'content' field for transcript text
+            text = item.get("content", item.get("text", item.get("transcript", "")))
             if not text:
                 continue
             
@@ -196,9 +203,9 @@ class FinanceDataset(IterableDataset):
                 yield TranscriptSample(
                     input_ids=chunk[:-1],
                     labels=chunk[1:],
-                    date=str(item.get("date", "")),
-                    company=str(item.get("company", "")),
-                    section=str(item.get("section", "unknown")),
+                    date=self._extract_date(item),
+                    company=str(item.get("symbol", item.get("company_name", ""))),
+                    section="transcript",  # Dataset doesn't separate sections
                 )
     
     def __len__(self) -> int:
