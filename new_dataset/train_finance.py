@@ -228,7 +228,7 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
         batch_size=config.data.batch_size,
     )
     
-    # Training loop
+    # Training loop with graceful handling
     print(f"Starting training for {config.training.max_iters} iterations...")
     
     model.train()
@@ -236,164 +236,195 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
     loss_acc = 0.0
     loss_steps = 0
     data_iter = iter(train_loader)
-    val_iter = iter(val_loader)  # For validation
+    val_iter = iter(val_loader)
     
-    for step in range(config.training.max_iters):
-        # Get batch
+    # TMI checkpoints: midpoint and end only
+    tmi_steps = {config.training.max_iters // 2, config.training.max_iters - 1}
+    
+    def save_checkpoint(step, reason="scheduled"):
+        """Save checkpoint with error handling."""
+        checkpoint_path = os.path.join(config.output_dir, f"checkpoint_{step}.pt")
         try:
-            batch = next(data_iter)
-        except StopIteration:
-            data_iter = iter(train_loader)
-            batch = next(data_iter)
-        
-        x = batch["input_ids"].to(device)
-        y = batch["labels"].to(device)
-        
-        # Forward pass with autocast
-        with ctx:
-            logits, loss = model(x, y)
-            
-            # L1 sparsity regularization
-            sparsity_penalty = hook_manager.get_sparsity_penalty()
-            if isinstance(sparsity_penalty, torch.Tensor):
-                sparsity_penalty = sparsity_penalty.to(device)
-            total_loss = loss + config.training.l1_lambda * sparsity_penalty
-        
-        # Track metrics
-        loss_acc += loss.item()
-        loss_steps += 1
-        
-        mean_sparsity = hook_manager.get_mean_sparsity()
-        sparsity_tracker.record(
-            activations=hook_manager.activations[-1] if hook_manager.activations else torch.zeros(1),
-            loss=loss.item(),
-        )
-        
-        # Backward pass
-        if scaler is not None:
-            scaler.scale(total_loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
-        else:
-            total_loss.backward()
-            optimizer.step()
-        
-        optimizer.zero_grad()
-        scheduler.step()
-        
-        # Logging
-        if step % config.training.log_freq == 0:
-            avg_loss = loss_acc / loss_steps
-            current_lr = scheduler.get_last_lr()[0]
-            
-            print(f"Step {step}/{config.training.max_iters} | "
-                  f"Loss: {avg_loss:.4f} | "
-                  f"Sparsity: {mean_sparsity:.4f} | "
-                  f"LR: {current_lr:.6f}")
-            
-            if config.use_wandb and WANDB_AVAILABLE:
-                wandb.log({
-                    "train/loss": avg_loss,
-                    "train/sparsity": mean_sparsity,
-                    "train/lr": current_lr,
-                    "train/l1_penalty": sparsity_penalty.item() if isinstance(sparsity_penalty, torch.Tensor) else sparsity_penalty,
-                }, step=step)
-            
-            loss_acc = 0.0
-            loss_steps = 0
-        
-        # Evaluation (with validation loss)
-        if step % config.training.eval_freq == 0 and step > 0:
-            # Compute validation loss
-            model.eval()
-            val_losses = []
-            with torch.no_grad():
-                for _ in range(5):  # 5 validation batches
-                    try:
-                        val_batch = next(val_iter)
-                    except StopIteration:
-                        val_iter = iter(val_loader)
-                        val_batch = next(val_iter)
-                    
-                    val_x = val_batch["input_ids"].to(device)
-                    val_y = val_batch["labels"].to(device)
-                    _, val_loss = model(val_x, val_y)
-                    val_losses.append(val_loss.item())
-            
-            avg_val_loss = sum(val_losses) / len(val_losses)
-            print(f"  Val Loss: {avg_val_loss:.4f}")
-            
-            if config.use_wandb and WANDB_AVAILABLE:
-                wandb.log({"val/loss": avg_val_loss}, step=step)
-            
-            model.train()
-            
-            # Compute TMI (Topological Modularity Index)
-            try:
-                tmi_result = compute_tmi(model, top_k_percent=config.metrics.tmi_top_k_percent)
-                print(f"  TMI: Q={tmi_result.modularity_q:.4f}, "
-                      f"Communities={tmi_result.num_communities}")
-                
-                if config.use_wandb and WANDB_AVAILABLE:
-                    wandb.log({
-                        "metrics/tmi_modularity": tmi_result.modularity_q,
-                        "metrics/tmi_communities": tmi_result.num_communities,
-                    }, step=step)
-            except Exception as e:
-                print(f"  TMI computation failed: {e}")
-            
-            # Compute SEC (Sparsity-Entropy Correlation)
-            if len(sparsity_tracker.sparsity_values) > 10:
-                sec_result = compute_sec(
-                    sparsity_tracker.sparsity_values,
-                    sparsity_tracker.perplexity_values,
-                )
-                print(f"  SEC: r={sec_result.correlation:.4f}, p={sec_result.p_value:.4f}")
-                
-                if config.use_wandb and WANDB_AVAILABLE:
-                    wandb.log({
-                        "metrics/sec_correlation": sec_result.correlation,
-                        "metrics/sec_pvalue": sec_result.p_value,
-                    }, step=step)
-                
-                # Reset tracker for next window
-                sparsity_tracker.reset()
-        
-        # Save checkpoint
-        if step % config.training.save_freq == 0 and step > 0:
-            checkpoint_path = os.path.join(config.output_dir, f"checkpoint_{step}.pt")
             torch.save({
                 "step": step,
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "config": config,
             }, checkpoint_path)
-            print(f"  Saved checkpoint: {checkpoint_path}")
+            print(f"  Saved checkpoint ({reason}): {checkpoint_path}")
+            return True
+        except Exception as e:
+            print(f"  WARNING: Checkpoint save failed: {e}")
+            return False
+    
+    def gpu_memory_check():
+        """Check GPU memory and cooldown if needed."""
+        if torch.cuda.is_available():
+            mem_used = torch.cuda.memory_allocated() / 1e9
+            mem_total = torch.cuda.get_device_properties(0).total_memory / 1e9
+            usage_pct = mem_used / mem_total
             
-            # Export topology
+            if usage_pct > 0.85:  # Over 85% usage
+                print(f"  GPU memory high ({usage_pct*100:.1f}%), cooling down...")
+                torch.cuda.empty_cache()
+                import gc
+                gc.collect()
+                import time
+                time.sleep(5)
+                print("  Resuming training...")
+    
+    try:
+        for step in range(config.training.max_iters):
+            # Get batch
             try:
-                gexf_path = export_topology(model, step, config.output_dir)
-                print(f"  Exported topology: {gexf_path}")
-            except Exception as e:
-                print(f"  Topology export failed: {e}")
-        
-        if dry_run and step >= 10:
-            print("Dry run complete!")
-            break
+                batch = next(data_iter)
+            except StopIteration:
+                data_iter = iter(train_loader)
+                batch = next(data_iter)
+            
+            x = batch["input_ids"].to(device)
+            y = batch["labels"].to(device)
+            
+            # Forward pass with autocast
+            with ctx:
+                logits, loss = model(x, y)
+                
+                # L1 sparsity regularization
+                sparsity_penalty = hook_manager.get_sparsity_penalty()
+                if isinstance(sparsity_penalty, torch.Tensor):
+                    sparsity_penalty = sparsity_penalty.to(device)
+                total_loss = loss + config.training.l1_lambda * sparsity_penalty
+            
+            # Track metrics
+            loss_acc += loss.item()
+            loss_steps += 1
+            
+            mean_sparsity = hook_manager.get_mean_sparsity()
+            sparsity_tracker.record(
+                activations=hook_manager.activations[-1] if hook_manager.activations else torch.zeros(1),
+                loss=loss.item(),
+            )
+            
+            # Backward pass
+            if scaler is not None:
+                scaler.scale(total_loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                total_loss.backward()
+                optimizer.step()
+            
+            optimizer.zero_grad()
+            scheduler.step()
+            
+            # Logging
+            if step % config.training.log_freq == 0:
+                avg_loss = loss_acc / loss_steps
+                current_lr = scheduler.get_last_lr()[0]
+                
+                print(f"Step {step}/{config.training.max_iters} | "
+                      f"Loss: {avg_loss:.4f} | "
+                      f"Sparsity: {mean_sparsity:.4f} | "
+                      f"LR: {current_lr:.6f}")
+                
+                if config.use_wandb and WANDB_AVAILABLE:
+                    wandb.log({
+                        "train/loss": avg_loss,
+                        "train/sparsity": mean_sparsity,
+                        "train/lr": current_lr,
+                        "train/l1_penalty": sparsity_penalty.item() if isinstance(sparsity_penalty, torch.Tensor) else sparsity_penalty,
+                    }, step=step)
+                
+                loss_acc = 0.0
+                loss_steps = 0
+            
+            # Validation (every eval_freq, lightweight - no heavy metrics)
+            if step % config.training.eval_freq == 0 and step > 0:
+                model.eval()
+                val_losses = []
+                with torch.no_grad():
+                    for _ in range(5):
+                        try:
+                            val_batch = next(val_iter)
+                        except StopIteration:
+                            val_iter = iter(val_loader)
+                            val_batch = next(val_iter)
+                        
+                        val_x = val_batch["input_ids"].to(device)
+                        val_y = val_batch["labels"].to(device)
+                        _, val_loss = model(val_x, val_y)
+                        val_losses.append(val_loss.item())
+                
+                avg_val_loss = sum(val_losses) / len(val_losses)
+                print(f"  Val Loss: {avg_val_loss:.4f}")
+                
+                if config.use_wandb and WANDB_AVAILABLE:
+                    wandb.log({"val/loss": avg_val_loss}, step=step)
+                
+                model.train()
+                
+                # GPU memory check during validation
+                gpu_memory_check()
+            
+            # TMI only at midpoint and end (expensive computation)
+            if step in tmi_steps:
+                print(f"\n  Computing TMI at step {step}...")
+                try:
+                    tmi_result = compute_tmi(model, top_k_percent=config.metrics.tmi_top_k_percent)
+                    print(f"  TMI: Q={tmi_result.modularity_q:.4f}, "
+                          f"Communities={tmi_result.num_communities}")
+                    
+                    if config.use_wandb and WANDB_AVAILABLE:
+                        wandb.log({
+                            "metrics/tmi_modularity": tmi_result.modularity_q,
+                            "metrics/tmi_communities": tmi_result.num_communities,
+                        }, step=step)
+                except Exception as e:
+                    print(f"  TMI computation failed: {e}")
+                
+                # Cooldown after heavy computation
+                gpu_memory_check()
+            
+            # Save checkpoint
+            if step % config.training.save_freq == 0 and step > 0:
+                save_checkpoint(step)
+                
+                # Export topology
+                try:
+                    gexf_path = export_topology(model, step, config.output_dir)
+                    print(f"  Exported topology: {gexf_path}")
+                except Exception as e:
+                    print(f"  Topology export failed: {e}")
+            
+            if dry_run and step >= 10:
+                print("Dry run complete!")
+                break
+    
+    except KeyboardInterrupt:
+        print(f"\n\n{'='*60}")
+        print("TRAINING INTERRUPTED - Saving checkpoint...")
+        print(f"{'='*60}")
+        save_checkpoint(step, reason="interrupted")
+        print("You can resume from this checkpoint later.")
+        print(f"{'='*60}\n")
     
     # Final save
     final_path = os.path.join(config.output_dir, "model_final.pt")
-    torch.save({
-        "step": step,
-        "model_state_dict": model.state_dict(),
-        "config": config,
-    }, final_path)
-    print(f"Training complete! Final model saved to: {final_path}")
+    try:
+        torch.save({
+            "step": step,
+            "model_state_dict": model.state_dict(),
+            "config": config,
+        }, final_path)
+        print(f"Training complete! Final model saved to: {final_path}")
+    except Exception as e:
+        print(f"Final save failed: {e}")
     
-    # Final TMI
+    # Final TMI (at the very end)
+    print("\nComputing final TMI...")
     try:
         tmi_result = compute_tmi(model)
-        print(f"\nFinal TMI: Q={tmi_result.modularity_q:.4f}, Communities={tmi_result.num_communities}")
+        print(f"Final TMI: Q={tmi_result.modularity_q:.4f}, Communities={tmi_result.num_communities}")
     except Exception as e:
         print(f"Final TMI computation failed: {e}")
     
