@@ -1,7 +1,7 @@
 """
 Dragon Metrics Library for BDH Competition
 
-Implements the four Frontier Metrics from PDF Section 4:
+Implements the four Frontier Metrics from 
 1. TMI: Topological Modularity Index (Section 4.1)
 2. SPS: Synaptic Persistence Score (Section 4.2)
 3. SEC: Sparsity-Entropy Correlation (Section 4.3)
@@ -78,7 +78,7 @@ def compute_tmi(
     Verifies the claim that BDH evolves a "scale-free graph of neurons"
     with "high modularity" through training.
     
-    Methodology (from PDF Section 4.1):
+    Methodology (from ):
     1. Extract W_eff = decoder @ encoder as weighted adjacency matrix
     2. Sparsify to top k% edges by magnitude
     3. Apply Louvain community detection
@@ -189,7 +189,7 @@ def compute_sps(
     Measures the durability of Hebbian memory by computing
     autocorrelation of synaptic states over time.
     
-    Methodology (from PDF Section 4.2):
+    Methodology (from ):
     1. Take snapshots of σ at regular intervals
     2. Compute cosine similarity between σ_t and σ_{t+k}
     3. Analyze decay curve (power-law vs exponential)
@@ -300,7 +300,7 @@ def compute_sec(
     Validates the "Reasoning you can see" claim by measuring
     correlation between activation density and input surprisal.
     
-    Methodology (from PDF Section 4.3):
+    Methodology (from ):
     1. Measure ρ_t = fraction of non-zero activations
     2. Measure perplexity as proxy for surprisal
     3. Compute Pearson correlation
@@ -366,7 +366,7 @@ def compute_mcl(
     Empirically demonstrates that individual neurons encode
     specific financial concepts.
     
-    Methodology (from PDF Section 4.4):
+    Methodology (from ):
     1. Define concepts: {Inflation, AI, Dividend, Layoffs, ...}
     2. For each concept, identify neurons with max activation
     3. Compute selectivity score: S(n,c) = P(active|c) / P(active|¬c)
@@ -422,7 +422,7 @@ def create_activation_hooks(model: nn.Module) -> Tuple[List[torch.Tensor], List[
     """
     Register forward hooks to capture activations.
     
-    Uses model.register_forward_hook() as specified in PDF Section 5.3.
+    Uses model.register_forward_hook() as specified in 
     
     Returns:
         Tuple of (activation_list, hook_handles)

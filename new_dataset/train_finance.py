@@ -1,15 +1,9 @@
 """
-Financial Domain Training Script for BDH Competition
+BDH training script for financial earnings transcripts.
 
-Implements the Two-Stage Protocol from PDF Section 5.2:
-- Stage A: Structural Pre-training (2005-2018) with L1 regularization
-- Stage B: Hebbian Inference evaluation (handled by evaluate_hebbian.py)
-
-Key features:
-- Chronological data streaming (no shuffling)
-- L1 regularization on activations for sparsity
-- Forward hooks for activation capture
-- WandB logging for real-time dashboard
+Two-stage protocol:
+1. Pre-training (2005-2018) with L1 sparsity regularization
+2. Hebbian inference evaluation (2019-2024) - see evaluate_hebbian.py
 """
 
 import os
@@ -39,11 +33,10 @@ except ImportError:
 
 class ActivationHookManager:
     """
-    Manages forward hooks to capture sparse activations.
+    Manages forward hooks to capture sparse activations during training.
     
-    Implements the Hook System from PDF Section 5.3:
-    "We will use model.register_forward_hook() in PyTorch to intercept
-    the activation vectors y_{t,l} without disrupting the forward pass."
+    Intercepts post-ReLU activations without disrupting the forward pass.
+    Used for computing L1 sparsity penalty and activation statistics.
     """
     
     def __init__(self):
@@ -111,11 +104,9 @@ class ActivationHookManager:
     
     def get_sparsity_penalty(self) -> torch.Tensor:
         """
-        Compute L1 penalty on activations.
+        Compute L1 penalty on activations to encourage sparsity.
         
-        From PDF Section 5.2: "We apply L1 regularization on the 
-        activations during this phase to encourage the emergence of
-        sparsity, reinforcing the architecture's natural tendency."
+        Returns average L1 norm across all captured activations.
         """
         if not self.activations:
             return torch.tensor(0.0)
@@ -195,14 +186,12 @@ def setup_training(config: ExperimentConfig) -> Tuple:
 
 def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
     """
-    Main training loop implementing Stage A from PDF Section 5.2.
+    Main BDH training loop with L1 sparsity regularization.
     
-    Stage A: Structural Pre-training (2005-2018 Data)
-    - Goal: Learn static weights (E, D_x, D_y) that define the 
-      "grammar" of the financial domain
-    - Method: Standard Autoregressive Language Modeling
-    - Optimization: AdamW + Cosine LR
-    - Constraint: L1 regularization on activations for sparsity
+    Trains on 2005-2018 earnings transcripts using:
+    - Autoregressive language modeling objective
+    - AdamW optimizer with cosine LR schedule  
+    - L1 penalty on activations for sparsity
     """
     
     if config is None:

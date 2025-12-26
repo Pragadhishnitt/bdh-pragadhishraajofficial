@@ -1,14 +1,8 @@
 """
-Finance Data Loader for BDH Competition
+Financial earnings transcript data loader with chronological streaming.
 
-Implements chronological streaming from S&P 500 Earnings Transcripts
-as specified in PDF Section 3.2 and 5.1.
-
-Key features:
-- Chronological ordering (essential for Hebbian learning evaluation)
-- Sector filtering (Technology sector for maximum concept drift)
-- Structure preservation (Presentation vs Q&A sections)
-- GPT-2 BPE tokenization for compatibility
+Loads S&P 500 earnings call transcripts from HuggingFace in chronological order.
+Uses GPT-2 BPE tokenization for text encoding.
 """
 
 import os
@@ -45,11 +39,8 @@ class FinanceDataset(IterableDataset):
     """
     Chronological streaming dataset for S&P 500 earnings transcripts.
     
-    Implements the data pipeline from PDF Section 3.2:
-    1. Source: kurry/sp500_earnings_transcripts (HuggingFace)
-    2. Filtering: Technology sector
-    3. Chronological sequencing (NOT shuffled)
-    4. Structure preservation (Presentation vs Q&A)
+    Loads transcripts from HuggingFace, filters by date range, and yields
+    tokenized chunks in chronological order (no shuffling).
     """
     
     def __init__(
@@ -220,17 +211,18 @@ def create_data_loaders(
     block_size: int = 512,
     batch_size: int = 32,
     num_workers: int = 0,
-    val_split: float = 0.2,  # NEW: 20% validation split within Stage A
+    val_split: float = 0.2,  # 20% validation split
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
-    Create training, validation, and evaluation data loaders.
+    Create training, validation, and test data loaders.
     
-    Implements the Two-Stage Protocol from PDF Section 5.2:
-    - Stage A: Pre-training on 2005-2018 data (split into train/val)
-    - Stage B: Hebbian evaluation on 2019-2024 data (test set)
+    Splits data chronologically:
+    - Train: 2005-2018 (first 80%)
+    - Val: 2005-2018 (last 20%)
+    - Test: 2019-2024 (for Hebbian inference evaluation)
     
     Returns:
-        (train_loader, val_loader, eval_loader)
+        (train_loader, val_loader, test_loader)
     """
     
     def collate_fn(samples):

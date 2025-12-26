@@ -1,13 +1,8 @@
 """
-Hebbian Inference Evaluation for BDH Competition
+Hebbian inference evaluation for BDH.
 
-Implements Stage B from PDF Section 5.2:
-- Freeze static weights (E, D_x, D_y)
-- Allow synaptic state σ updates via forward pass
-- Compare perplexity vs frozen GPT-2 baseline
-
-This demonstrates "Continuous Learning" and "Generalization over Time"
-without backpropagation gradient updates.
+Evaluates BDH with frozen weights but dynamic synaptic state updates.
+Compares adaptation performance against GPT-2 baseline on held-out test data.
 """
 
 import os
@@ -43,17 +38,10 @@ except ImportError:
 
 class HebbianBDH(nn.Module):
     """
-    BDH model wrapper that implements Hebbian synaptic updates.
+    BDH wrapper with Hebbian synaptic updates during inference.
     
-    During inference, static weights are frozen but synaptic state σ
-    is updated via Hebbian learning rule: "neurons that fire together,
-    wire together."
-    
-    From PDF Section 2.2:
-    "The model is effectively training itself during inference. As it 
-    processes a sequence of tokens, it is not just attending to them; 
-    it is rewriting its internal circuitry to better predict future 
-    tokens based on the immediate past."
+    Static weights are frozen, but synaptic state (σ) adapts based on
+    activation correlations: "neurons that fire together, wire together".
     """
     
     def __init__(self, base_model: bdh.BDH, learning_rate: float = 0.01):
@@ -161,17 +149,11 @@ def evaluate_hebbian(
     compare_gpt2: bool = True,
 ) -> Dict:
     """
-    Evaluate Hebbian inference adaptation.
+    Evaluate BDH's Hebbian adaptation on test data (2019-2024).
     
-    From PDF Section 5.2 Stage B:
-    - Freeze BDH static weights
-    - Run on 2019-2024 evaluation data
-    - Allow σ updates via Hebbian rule
-    - Compare perplexity vs frozen GPT-2
-    
-    Success Criterion: If BDH maintains lower perplexity, it proves
-    that synaptic dynamics alone are sufficient to adapt to new 
-    market conditions.
+    Freezes BDH weights and allows only synaptic state updates.
+    Compares perplexity against frozen GPT-2 baseline to demonstrate
+    that dynamic synaptic adaptation enables continual learning.
     """
     
     if config is None:

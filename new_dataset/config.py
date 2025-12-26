@@ -1,7 +1,7 @@
 """
 BDH Competition Experiment Configuration
 
-Centralized hyperparameters matching PDF Section 5.1 specifications.
+Centralized hyperparameters matching specifications.
 """
 
 from dataclasses import dataclass, field

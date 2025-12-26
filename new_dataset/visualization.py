@@ -1,7 +1,7 @@
 """
 Visualization Utilities for BDH Competition
 
-Implements visualization requirements from PDF Sections 5.3 and 7.2:
+Implements visualization requirements 
 - Topology plots (SVG of learned graph structure)
 - Sparsity heatmaps (activation density over text)
 - Activation atlases (neurons colored by semantic role)
@@ -49,7 +49,7 @@ def plot_topology(
     """
     Generate SVG visualization of learned graph structure.
     
-    From PDF Section 5.3 / Appendix:
+    From / Appendix:
     "Static SVG visualizations of the learned graph structure
     (W_eff) showing community clusters."
     
@@ -233,7 +233,7 @@ def plot_activation_atlas(
     """
     Generate activation atlas with neurons colored by semantic role.
     
-    From PDF Section 4.4:
+    From 
     "We will generate 'Activation Atlases'—visual maps where neurons
     are colored by their semantic role."
     
@@ -380,7 +380,7 @@ def export_topology_gexf(
     
     For analysis in Gephi or NetworkX visualization.
     
-    From PDF Section 5.3:
+    From 
     "A function export_topology(model, epoch) will extract the 
     effective adjacency matrix and save it as a .gexf file."
     """

@@ -1,10 +1,7 @@
 """
-BDH Competition Pipeline for Kaggle/Colab
+BDH Competition Pipeline - Kaggle/Colab Ready
 
-Single-file pipeline that runs the complete training and evaluation workflow.
-Outputs all results to organized directories.
-
-Usage in Kaggle/Colab:
+Usage:
     !python pipeline.py --mode full        # Full pipeline
     !python pipeline.py --mode train       # Training only
     !python pipeline.py --mode eval        # Evaluation only
@@ -21,26 +18,6 @@ from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "new_dataset"))
 
 import torch
-
-# =============================================================================
-# TOKENIZATION CLARIFICATION
-# =============================================================================
-# 
-# Q: Does this handle tokenization?
-# A: YES. The finance_loader.py handles ALL preprocessing:
-#
-# 1. If tiktoken available (GPT-2 BPE tokenizer):
-#    - Uses tiktoken.get_encoding("gpt2") 
-#    - Same tokenizer as GPT-2, vocab_size=50257
-#
-# 2. If tiktoken not available (fallback):
-#    - Byte-level encoding: text.encode("utf-8")
-#    - Same as original train.py uses, vocab_size=256
-#
-# The BDH model in bdh.py works with EITHER tokenization scheme.
-# No custom tokenizer training needed - it's plug-and-play.
-#
-# =============================================================================
 
 
 def setup_directories():
