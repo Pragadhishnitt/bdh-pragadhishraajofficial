@@ -18,11 +18,7 @@ from config import get_default_config
 from dragon_metrics import compute_tmi, export_topology
 
 try:
-    from visualization import (
-        plot_topology,
-        plot_sps_curve,
-        plot_sec_scatter,
-    )
+    from visualization import plot_topology
     VIZ_AVAILABLE = True
 except ImportError as e:
     VIZ_AVAILABLE = False
