@@ -212,8 +212,15 @@ def run_pipeline(mode: str = "full"):
         
         # Load model for visualization
         import bdh
-        from config import get_default_config
-        cfg = get_default_config()
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        
+        # Use config from checkpoint (matches training)
+        cfg = checkpoint.get("config", None)
+        if cfg is None:
+            # Fallback to small config (what training uses)
+            from config import get_small_config
+            cfg = get_small_config()
+        
         bdh_config = bdh.BDHConfig(
             n_layer=cfg.model.n_layer,
             n_embd=cfg.model.n_embd,
@@ -221,7 +228,7 @@ def run_pipeline(mode: str = "full"):
             vocab_size=cfg.model.vocab_size,
         )
         model = bdh.BDH(bdh_config)
-        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        
         # Fix for torch.compile adding _orig_mod prefix
         state_dict = checkpoint["model_state_dict"]
         new_state_dict = {}
