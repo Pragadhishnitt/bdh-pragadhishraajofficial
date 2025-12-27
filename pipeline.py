@@ -72,7 +72,7 @@ def check_environment():
 
 def get_config(mode: str):
     """Get configuration based on mode."""
-    from config import get_default_config, get_small_config, get_debug_config
+    from config import get_default_config, get_small_config, get_debug_config, get_a100_config
     
     if mode == "quick":
         config = get_debug_config()
@@ -93,6 +93,10 @@ def get_config(mode: str):
         config.training.log_freq = 1000        # Log every 1000 steps
         config.training.eval_freq = 1000       # Eval every 1000 steps  
         config.training.save_freq = 2500       # Save checkpoints at 2500 & 5000
+    elif mode == "a100":
+        # A100 optimized (80-90GB VRAM)
+        config = get_a100_config()
+        print("A100 Mode: batch_size=128, n_layer=8, n_embd=512, bfloat16")
     else:
         config = get_default_config()
     
@@ -211,6 +215,7 @@ def run_pipeline(mode: str = "full"):
         viz    - Visualization only (requires checkpoint)
         quick  - Quick test (100 iters, for debugging)
         medium - Balanced for Kaggle (3000 iters)
+        a100   - A100 GPU optimized (batch=128, 10K iters, bfloat16)
     """
     print("\n" + "=" * 60)
     print(f"BDH COMPETITION PIPELINE - MODE: {mode.upper()}")
@@ -228,8 +233,8 @@ def run_pipeline(mode: str = "full"):
     # Determine if we need to train
     need_training = mode in ["full", "train", "quick", "medium"]
     
-    # For eval mode: auto-train if no checkpoint exists
-    if mode == "eval" and checkpoint_path is None:
+    # For eval/a100 mode: auto-train if no checkpoint exists
+    if mode in ["eval", "a100"] and checkpoint_path is None:
         print("\n⚠ No checkpoint found. Will train first, then evaluate.")
         need_training = True
     
@@ -278,14 +283,14 @@ def run_pipeline(mode: str = "full"):
         print("✓ Model loaded")
     
     # Stage B: Evaluation
-    if mode in ["full", "eval"]:
+    if mode in ["full", "eval", "a100"]:
         if checkpoint_path and os.path.exists(checkpoint_path):
             run_evaluation(checkpoint_path, config)
         else:
             print("Skipping evaluation - no checkpoint found")
     
     # Stage C: Visualization
-    if mode in ["full", "eval", "viz", "quick"]:
+    if mode in ["full", "eval", "viz", "quick", "a100"]:
         if model is not None:
             run_visualization(model, config)
         else:
@@ -333,7 +338,7 @@ Examples:
     )
     parser.add_argument(
         "--mode", 
-        choices=["full", "medium", "train", "eval", "viz", "quick"],
+        choices=["full", "medium", "train", "eval", "viz", "quick", "a100"],
         default="eval",
         help="Pipeline mode (default: eval)"
     )

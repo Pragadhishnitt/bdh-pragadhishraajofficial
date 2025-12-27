@@ -66,8 +66,12 @@ class HebbianBDH(nn.Module):
             for _ in range(config.n_layer)
         ])
         
-        # Damping factor for forgetting (lower = faster pruning of weak connections)
-        self.damping = 0.95
+        # Damping factor for forgetting (0.99 = slow decay, preserves long-range memory)
+        # CRITICAL: Do NOT use damping < 0.99 or SPS Hurst will drop to ~0.5!
+        self.damping = 0.99
+        
+        # Sigma norm tracking for stability monitoring
+        self.sigma_norms = []
     
     def hebbian_update(self, x_sparse: torch.Tensor, layer: int) -> None:
         """
@@ -93,6 +97,9 @@ class HebbianBDH(nn.Module):
                 self.damping * self.sigma[layer].data + 
                 self.learning_rate * correlation
             )
+            # Track sigma norm for stability monitoring (layer 0 only to save memory)
+            if layer == 0 and len(self.sigma_norms) < 1000:
+                self.sigma_norms.append(float(self.sigma[0].data.norm().cpu()))
     
     def forward(self, idx, targets=None):
         """Forward pass with Hebbian synaptic updates."""
@@ -205,8 +212,10 @@ def evaluate_hebbian(
     
     # Load evaluation data (2019-2024)
     print("Loading evaluation data...")
-    # Use smaller batch size for evaluation to save memory
-    eval_batch_size = min(8, config.data.batch_size)  # Cap at 8 for T4 GPU
+    # Load evaluation data (2019-2024)
+    print("Loading evaluation data...")
+    # Use config batch size (A100 can handle 128+, T4 needs ~8)
+    eval_batch_size = config.data.batch_size
     _, _, eval_loader = create_data_loaders(
         pretrain_years=config.data.pretrain_years,
         eval_years=config.data.eval_years,
@@ -214,7 +223,7 @@ def evaluate_hebbian(
         block_size=config.data.block_size,
         batch_size=eval_batch_size,
     )
-    print(f"Using eval batch size: {eval_batch_size} (reduced for memory)")
+    print(f"Using eval batch size: {eval_batch_size}")
     
     # Initialize trackers
     sigma_tracker = SynapticStateTracker(snapshot_interval=config.metrics.sps_snapshot_interval)
@@ -228,12 +237,14 @@ def evaluate_hebbian(
     sec_sparsity_values = []
     sec_perplexity_values = []
     
-    # Evaluation loop - 5000 steps to match Stage A
+    # Evaluation loop - 5000 steps for reliable SPS Hurst estimation
+    # CRITICAL: SPS needs ~50+ snapshots for stable Hurst; with interval=100, need 5000+ steps
     print("Running Hebbian inference evaluation...")
     print("Comparing: Trained BDH vs Untrained BDH vs GPT-2\n")
+    print(f"Damping = {hebbian_model.damping} (must be >= 0.99 for H > 0.5)")
     step = 0
-    max_steps = 1000  # Match Stage A for full evaluation
-    log_freq = 300
+    max_steps = 5000  # Increased from 1500 for reliable SPS statistics
+    log_freq = 500
     save_freq = 500  # Save intermediate results every 1000 steps
     
     # Output directory setup

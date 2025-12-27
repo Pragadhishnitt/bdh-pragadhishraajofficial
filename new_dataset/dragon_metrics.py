@@ -200,7 +200,16 @@ def compute_sps(
         
     Returns:
         SPSResult with autocorrelation curve and Hurst exponent
+        
+    Note:
+        - Requires ~50+ snapshots for reliable Hurst estimation
+        - At snapshot_interval=100, this means ~5000+ evaluation steps
     """
+    # Warn if insufficient snapshots for reliable Hurst estimation
+    if len(snapshots) < 20:
+        print(f"⚠ WARNING: Only {len(snapshots)} SPS snapshots (need 50+ for reliable Hurst)")
+        print(f"  Current estimate will be unstable. Increase max_steps or decrease snapshot_interval.")
+    
     if len(snapshots) < 4:
         return SPSResult(
             autocorrelation=np.array([1.0]),
@@ -227,22 +236,29 @@ def compute_sps(
             
             if norm_t > 0 and norm_tk > 0:
                 sim = np.dot(sigma_t, sigma_tk) / (norm_t * norm_tk)
-                similarities.append(sim)
+                # Protect against numerical issues
+                if np.isfinite(sim):
+                    similarities.append(sim)
         
         if similarities:
             autocorr[i] = np.mean(similarities)
     
     # Estimate Hurst exponent via log-log regression
     # H > 0.5 indicates long-range dependence
-    valid_mask = autocorr > 0
+    valid_mask = (autocorr > 0) & np.isfinite(autocorr)
     if np.sum(valid_mask) > 2:
         log_lag = np.log(lags[valid_mask])
         log_acf = np.log(autocorr[valid_mask])
         
-        # Linear regression: log(ACF) ~ -slope * log(lag)
-        slope, _ = np.polyfit(log_lag, log_acf, 1)
-        hurst = 1 - (-slope / 2)  # Approximate Hurst from decay slope
-        hurst = np.clip(hurst, 0, 1)
+        # Protect against NaN/Inf in log values
+        finite_mask = np.isfinite(log_lag) & np.isfinite(log_acf)
+        if np.sum(finite_mask) > 2:
+            # Linear regression: log(ACF) ~ -slope * log(lag)
+            slope, _ = np.polyfit(log_lag[finite_mask], log_acf[finite_mask], 1)
+            hurst = 1 - (-slope / 2)  # Approximate Hurst from decay slope
+            hurst = np.clip(hurst, 0, 1)
+        else:
+            hurst = 0.5
     else:
         hurst = 0.5
     

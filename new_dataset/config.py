@@ -97,3 +97,35 @@ def get_debug_config() -> ExperimentConfig:
     config.training.log_freq = 10
     config.use_wandb = False
     return config
+
+
+def get_a100_config() -> ExperimentConfig:
+    """
+    Optimized config for A100 GPU (80-90GB VRAM).
+    
+    Maximizes throughput with larger batches and model dimensions.
+    Uses native bfloat16 (A100 has excellent bf16 support).
+    """
+    config = ExperimentConfig()
+    
+    # Larger model for A100 capacity
+    config.model.n_layer = 8          # vs 6 default
+    config.model.n_embd = 512         # vs 256 default
+    config.model.n_head = 8           # vs 4 default
+    config.model.mlp_internal_dim_multiplier = 128  # Keep same
+    
+    # Large batch size - A100 can handle it
+    config.data.batch_size = 128      # vs 32 default (4x increase)
+    config.data.block_size = 512      # Keep same
+    
+    # Full training
+    config.training.max_iters = 10000
+    config.training.log_freq = 500
+    config.training.eval_freq = 1000
+    config.training.save_freq = 2500
+    
+    # A100 native bfloat16
+    config.dtype = "bfloat16"
+    
+    return config
+
