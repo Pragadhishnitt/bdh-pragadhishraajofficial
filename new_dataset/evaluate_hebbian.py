@@ -206,7 +206,7 @@ def evaluate_hebbian(
     
     # Load evaluation data (2019-2024)
     print("Loading evaluation data...")
-    _, eval_loader = create_data_loaders(
+    _, _, eval_loader = create_data_loaders(
         pretrain_years=config.data.pretrain_years,
         eval_years=config.data.eval_years,
         sector=config.data.sector,
