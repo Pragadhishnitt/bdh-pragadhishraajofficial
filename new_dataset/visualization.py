@@ -340,6 +340,162 @@ def plot_activation_atlas(
     return output_path
 
 
+def plot_sps_curve(
+    snapshots: List[np.ndarray],
+    hurst_exponent: float,
+    output_path: str = "output/sps_curve.png",
+    figsize: Tuple[int, int] = (12, 6),
+) -> str:
+    """
+    Plot Synaptic Persistence Score autocorrelation curve.
+    
+    Shows how synaptic state memory decays over time.
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        raise ImportError("matplotlib required for SPS plotting")
+    
+    if len(snapshots) < 2:
+        print("Warning: Need at least 2 snapshots for SPS curve")
+        return output_path
+    
+    # Compute autocorrelation
+    max_lag = min(len(snapshots) - 1, 50)
+    lags = np.arange(1, max_lag + 1)
+    autocorr = np.zeros(len(lags))
+    
+    for i, lag in enumerate(lags):
+        corr_sum = 0
+        count = 0
+        for t in range(len(snapshots) - lag):
+            # Cosine similarity
+            s1 = snapshots[t]
+            s2 = snapshots[t + lag]
+            norm1 = np.linalg.norm(s1)
+            norm2 = np.linalg.norm(s2)
+            if norm1 > 0 and norm2 > 0:
+                corr_sum += np.dot(s1, s2) / (norm1 * norm2)
+                count += 1
+        autocorr[i] = corr_sum / count if count > 0 else 0
+    
+    # Create plot
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+    
+    # Left: Autocorrelation decay
+    ax1.plot(lags, autocorr, 'b-', linewidth=2, marker='o', markersize=4)
+    ax1.set_xlabel("Lag (snapshots)", fontsize=12)
+    ax1.set_ylabel("Autocorrelation", fontsize=12)
+    ax1.set_title(f"Synaptic Persistence (H={hurst_exponent:.3f})", fontsize=14)
+    ax1.grid(True, alpha=0.3)
+    ax1.axhline(y=0, color='k', linestyle='--', alpha=0.3)
+    
+    # Right: Log-log plot for Hurst estimation
+    ax2.loglog(lags, autocorr, 'r-', linewidth=2, marker='s', markersize=4)
+    ax2.set_xlabel("Lag (log scale)", fontsize=12)
+    ax2.set_ylabel("Autocorrelation (log scale)", fontsize=12)
+    ax2.set_title("Long-Range Dependence", fontsize=14)
+    ax2.grid(True, alpha=0.3, which='both')
+    
+    # Add interpretation text
+    interpretation = "H > 0.5: Long memory" if hurst_exponent > 0.5 else "H < 0.5: Short memory"
+    fig.text(0.5, 0.02, interpretation, ha='center', fontsize=12, 
+             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    
+    print(f"Saved SPS curve: {output_path}")
+    return output_path
+
+
+def plot_sec_scatter(
+    sparsity_values: List[float],
+    perplexity_values: List[float],
+    correlation: float,
+    p_value: float,
+    output_path: str = "output/sec_scatter.png",
+    figsize: Tuple[int, int] = (10, 8),
+) -> str:
+    """
+    Plot Sparsity-Entropy Correlation scatter plot.
+    
+    Shows relationship between activation density and perplexity.
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        raise ImportError("matplotlib required for SEC plotting")
+    
+    if len(sparsity_values) != len(perplexity_values):
+        print("Warning: Sparsity and perplexity arrays have different lengths")
+        return output_path
+    
+    if len(sparsity_values) == 0:
+        print("Warning: No data for SEC scatter plot")
+        return output_path
+    
+    sparsity = np.array(sparsity_values)
+    perplexity = np.array(perplexity_values)
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Scatter plot with color gradient by time
+    scatter = ax.scatter(
+        sparsity, 
+        perplexity,
+        c=np.arange(len(sparsity)),
+        cmap='viridis',
+        alpha=0.6,
+        s=30,
+    )
+    
+    # Add colorbar
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label('Time Step', fontsize=11)
+    
+    # Trend line
+    if len(sparsity) > 1:
+        z = np.polyfit(sparsity, perplexity, 1)
+        p = np.poly1d(z)
+        x_line = np.linspace(sparsity.min(), sparsity.max(), 100)
+        ax.plot(x_line, p(x_line), 'r--', linewidth=2, alpha=0.7, label='Trend')
+    
+    ax.set_xlabel("Activation Density (fraction non-zero)", fontsize=12)
+    ax.set_ylabel("Perplexity", fontsize=12)
+    ax.set_title(
+        f"Sparsity-Entropy Correlation\n"
+        f"r={correlation:.3f}, p={p_value:.4f}",
+        fontsize=14
+    )
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    
+    # Add interpretation
+    if p_value < 0.05:
+        sig_text = "Significant" if correlation > 0 else "Significant (negative)"
+        color = 'green' if correlation > 0 else 'orange'
+    else:
+        sig_text = "Not significant"
+        color = 'gray'
+    
+    ax.text(
+        0.02, 0.98, sig_text,
+        transform=ax.transAxes,
+        fontsize=12,
+        verticalalignment='top',
+        bbox=dict(boxstyle='round', facecolor=color, alpha=0.3)
+    )
+    
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    
+    print(f"Saved SEC scatter: {output_path}")
+    return output_path
+
+
+
 def plot_metrics_dashboard(
     metrics_history: Dict[str, List[float]],
     output_path: str = "output/metrics_dashboard.png",
