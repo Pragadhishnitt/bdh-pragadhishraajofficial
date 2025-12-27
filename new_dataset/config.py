@@ -82,7 +82,7 @@ def get_small_config() -> ExperimentConfig:
     config.model.n_layer = 4
     config.model.n_embd = 128
     config.data.batch_size = 16
-    config.training.max_iters = 5000
+    config.training.max_iters = 10000
     return config
 
 
