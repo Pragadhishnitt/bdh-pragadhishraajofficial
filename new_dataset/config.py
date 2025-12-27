@@ -101,22 +101,21 @@ def get_debug_config() -> ExperimentConfig:
 
 def get_a100_config() -> ExperimentConfig:
     """
-    Optimized config for A100 GPU (80-90GB VRAM).
+    Optimized config for A100 GPU (40GB VRAM).
     
-    Maximizes throughput with larger batches and model dimensions.
-    Uses native bfloat16 (A100 has excellent bf16 support).
+    Uses moderate model size that fits in memory.
     """
     config = ExperimentConfig()
     
-    # Larger model for A100 capacity
-    config.model.n_layer = 8          # vs 6 default
-    config.model.n_embd = 512         # vs 256 default
-    config.model.n_head = 8           # vs 4 default
-    config.model.mlp_internal_dim_multiplier = 128  # Keep same
+    # Moderate model - fits in 40GB A100
+    config.model.n_layer = 4          # Reduced from 8
+    config.model.n_embd = 256         # Reduced from 512
+    config.model.n_head = 4           # Reduced from 8
+    config.model.mlp_internal_dim_multiplier = 128
     
-    # Batch size - reduced for shared GPU environments
-    config.data.batch_size = 32       # Safe for 40GB A100 with other processes
-    config.data.block_size = 512      # Keep same
+    # Conservative batch size
+    config.data.batch_size = 32
+    config.data.block_size = 512
     
     # Full training
     config.training.max_iters = 10000
