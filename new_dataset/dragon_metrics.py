@@ -455,11 +455,13 @@ def export_topology(
     epoch: int,
     output_dir: str = "output",
     top_k_percent: float = 5.0,
+    max_nodes: int = 1000,  # Limit for Kaggle memory
 ) -> str:
     """
     Export effective adjacency matrix as .gexf file.
     
     For analysis in Gephi or NetworkX.
+    Memory-optimized: only stores non-zero edges, limits node count.
     
     Returns:
         Path to exported file
@@ -468,8 +470,28 @@ def export_topology(
     os.makedirs(output_dir, exist_ok=True)
     
     tmi_result = compute_tmi(model, top_k_percent)
+    adj = tmi_result.adjacency_matrix
     
-    G = nx.from_numpy_array(tmi_result.adjacency_matrix)
+    # Create SPARSE graph - only add non-zero edges
+    G = nx.Graph()
+    
+    # Find non-zero edges efficiently
+    rows, cols = np.where(adj > 0)
+    
+    # Limit to max_nodes to prevent memory issues
+    unique_nodes = np.unique(np.concatenate([rows, cols]))
+    if len(unique_nodes) > max_nodes:
+        # Keep nodes with highest degree (most edges)
+        node_degrees = np.bincount(np.concatenate([rows, cols]), minlength=adj.shape[0])
+        top_nodes = set(np.argsort(node_degrees)[-max_nodes:])
+        mask = np.array([r in top_nodes and c in top_nodes for r, c in zip(rows, cols)])
+        rows, cols = rows[mask], cols[mask]
+    
+    # Add edges (only upper triangle to avoid duplicates)
+    edges = [(int(r), int(c), {"weight": float(adj[r, c])}) 
+             for r, c in zip(rows, cols) if r < c]
+    G.add_edges_from(edges)
+    
     output_path = os.path.join(output_dir, f"topology_epoch_{epoch}.gexf")
     nx.write_gexf(G, output_path)
     

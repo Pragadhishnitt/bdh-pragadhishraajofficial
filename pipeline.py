@@ -2,7 +2,8 @@
 BDH Competition Pipeline - Kaggle/Colab Ready
 
 Usage:
-    !python pipeline.py --mode full        # Full pipeline
+    !python pipeline.py --mode full        # Full pipeline (5000 iters)
+    !python pipeline.py --mode medium      # Balanced for Kaggle (2000 iters)
     !python pipeline.py --mode train       # Training only
     !python pipeline.py --mode eval        # Evaluation only
     !python pipeline.py --mode quick       # Quick test (100 iters)
@@ -79,6 +80,13 @@ def get_config(mode: str):
         config.training.log_freq = 10
         config.training.eval_freq = 50
         config.training.save_freq = 50
+    elif mode == "medium":
+        # Balanced mode for Kaggle - reduces I/O to avoid timeouts
+        config = get_small_config()
+        config.training.max_iters = 3000       # vs 5000 in full
+        config.training.log_freq = 600         # Less printing
+        config.training.eval_freq = 1000        # Less frequent validation
+        config.training.save_freq = 1500       # Save only at 1000 & 2000
     elif mode in ["full", "train"]:
         # Use small config for Kaggle/Colab (T4 GPU)
         config = get_small_config()
@@ -188,7 +196,7 @@ def run_pipeline(mode: str = "full"):
     config = get_config(mode)
     
     # Training
-    if mode in ["full", "train", "quick"]:
+    if mode in ["full", "train", "quick", "medium"]:
         model = run_training(config)
         checkpoint_path = os.path.join(config.output_dir, "model_final.pt")
     else:
@@ -242,9 +250,9 @@ def main():
     parser = argparse.ArgumentParser(description="BDH Competition Pipeline")
     parser.add_argument(
         "--mode", 
-        choices=["full", "train", "eval", "quick"],
-        default="quick",
-        help="Pipeline mode: full (train+eval), train, eval, quick (100 iters)"
+        choices=["full", "medium", "train", "eval", "quick"],
+        default="medium",
+        help="Pipeline mode: full (5000 iters), medium (2000 iters), train, eval, quick (100 iters)"
     )
     args = parser.parse_args()
     
