@@ -239,7 +239,7 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
     val_iter = iter(val_loader)
     
     # TMI checkpoints: midpoint and end only
-    tmi_steps = {config.training.max_iters // 2, config.training.max_iters - 1}
+    tmi_steps = {}
     
     def save_checkpoint(step, reason="scheduled"):
         """Save checkpoint with error handling."""
