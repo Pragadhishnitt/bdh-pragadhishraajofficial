@@ -45,39 +45,73 @@ def plot_topology(
     top_k_percent: float = 5.0,
     figsize: Tuple[int, int] = (12, 12),
     node_size_scale: float = 50.0,
+    max_nodes: int = 500,  # LIMIT nodes to prevent slow computation
 ) -> str:
     """
     Generate SVG visualization of learned graph structure.
     
-    From / Appendix:
-    "Static SVG visualizations of the learned graph structure
-    (W_eff) showing community clusters."
-    
-    Args:
-        model: BDH model instance
-        output_path: Path to save SVG
-        top_k_percent: Edge sparsification threshold
-        figsize: Figure size
-        node_size_scale: Scale factor for node sizes
-        
-    Returns:
-        Path to saved visualization
+    OPTIMIZED VERSION: Limits to top max_nodes nodes by degree
+    to prevent extremely slow spring_layout computation.
     """
     if not MATPLOTLIB_AVAILABLE or not NETWORKX_AVAILABLE:
         raise ImportError("matplotlib and networkx required for topology plotting")
     
+    print("  Computing TMI...")
     # Compute TMI to get graph structure
     tmi_result = compute_tmi(model, top_k_percent)
+    adj = tmi_result.adjacency_matrix
     
-    # Build graph
-    G = nx.from_numpy_array(tmi_result.adjacency_matrix)
+    print(f"  Adjacency matrix shape: {adj.shape}")
+    
+    # Find non-zero edges and limit nodes
+    rows, cols = np.where(adj > 0)
+    print(f"  Total edges: {len(rows)}")
+    
+    if len(rows) == 0:
+        print("Warning: No edges in graph")
+        # Create empty plot
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "No edges found in graph", ha='center', va='center', fontsize=14)
+        ax.axis("off")
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        plt.savefig(output_path, format="svg", bbox_inches="tight")
+        plt.close()
+        return output_path
+    
+    # OPTIMIZATION: Select top max_nodes by degree
+    unique_nodes = np.unique(np.concatenate([rows, cols]))
+    print(f"  Unique nodes: {len(unique_nodes)}")
+    
+    if len(unique_nodes) > max_nodes:
+        print(f"  Limiting to top {max_nodes} nodes by degree...")
+        node_degrees = np.bincount(np.concatenate([rows, cols]), minlength=adj.shape[0])
+        top_nodes = set(np.argsort(node_degrees)[-max_nodes:])
+        mask = np.array([r in top_nodes and c in top_nodes for r, c in zip(rows, cols)])
+        rows, cols = rows[mask], cols[mask]
+        print(f"  Filtered edges: {len(rows)}")
+    
+    # Build sparse graph
+    print("  Building graph...")
+    G = nx.Graph()
+    edges = [(int(r), int(c), {"weight": float(adj[r, c])}) 
+             for r, c in zip(rows, cols) if r < c]
+    G.add_edges_from(edges)
     G.remove_nodes_from(list(nx.isolates(G)))
+    
+    print(f"  Graph: {len(G.nodes())} nodes, {len(G.edges())} edges")
     
     if len(G.nodes()) == 0:
         print("Warning: No non-isolated nodes in graph")
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "No connected nodes", ha='center', va='center', fontsize=14)
+        ax.axis("off")
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        plt.savefig(output_path, format="svg", bbox_inches="tight")
+        plt.close()
         return output_path
     
     # Community detection
+    print("  Running community detection...")
     partition = community_louvain.best_partition(G, weight="weight")
     
     # Node colors by community
@@ -90,23 +124,24 @@ def plot_topology(
     max_degree = max(degrees.values()) if degrees else 1
     node_sizes = [node_size_scale * (degrees[n] / max_degree + 0.1) for n in G.nodes()]
     
-    # Layout
-    pos = nx.spring_layout(G, k=2.0, iterations=100, seed=42)
+    # OPTIMIZED LAYOUT: Use kamada_kawai for <500 nodes, random for larger
+    print("  Computing layout...")
+    n_nodes = len(G.nodes())
+    if n_nodes <= 200:
+        pos = nx.kamada_kawai_layout(G)
+    elif n_nodes <= 500:
+        # Faster spring with fewer iterations
+        pos = nx.spring_layout(G, k=1.5, iterations=30, seed=42)
+    else:
+        # Even faster: random layout with some structure
+        pos = nx.random_layout(G, seed=42)
     
     # Create figure
+    print("  Drawing plot...")
     fig, ax = plt.subplots(figsize=figsize)
     
-    # Draw edges (with alpha based on weight)
-    edges = G.edges(data=True)
-    if edges:
-        weights = [e[2].get("weight", 1.0) for e in edges]
-        max_weight = max(weights) if weights else 1
-        edge_alphas = [0.1 + 0.4 * (w / max_weight) for w in weights]
-        
-        for (u, v, data), alpha in zip(edges, edge_alphas):
-            x = [pos[u][0], pos[v][0]]
-            y = [pos[u][1], pos[v][1]]
-            ax.plot(x, y, 'k-', alpha=alpha, linewidth=0.5)
+    # Draw edges (simplified - no per-edge alpha for speed)
+    nx.draw_networkx_edges(G, pos, ax=ax, alpha=0.2, width=0.3, edge_color='gray')
     
     # Draw nodes
     nx.draw_networkx_nodes(
@@ -120,7 +155,8 @@ def plot_topology(
     ax.set_title(
         f"BDH Neural Topology\n"
         f"Modularity Q = {tmi_result.modularity_q:.4f} | "
-        f"Communities = {tmi_result.num_communities}",
+        f"Communities = {tmi_result.num_communities} | "
+        f"Nodes = {n_nodes}",
         fontsize=14,
     )
     
@@ -145,7 +181,7 @@ def plot_topology(
     plt.savefig(output_path, format="svg", bbox_inches="tight", dpi=150)
     plt.close()
     
-    print(f"Saved topology plot: {output_path}")
+    print(f"  Saved topology plot: {output_path}")
     return output_path
 
 
