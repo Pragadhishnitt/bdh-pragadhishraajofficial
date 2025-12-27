@@ -33,7 +33,7 @@ class DataConfig:
 @dataclass
 class TrainingConfig:
     """Training hyperparameters."""
-    max_iters: int = 10000
+    max_iters: int = 6000
     learning_rate: float = 1e-3
     weight_decay: float = 0.1
     l1_lambda: float = 5e-4  # Sparsity regularization (increased for better modularity)
@@ -118,7 +118,7 @@ def get_a100_config() -> ExperimentConfig:
     config.data.block_size = 512
     
     # Full training
-    config.training.max_iters = 10000
+    config.training.max_iters = 6000
     config.training.log_freq = 500
     config.training.eval_freq = 1000
     config.training.save_freq = 1000
