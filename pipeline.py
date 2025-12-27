@@ -222,7 +222,15 @@ def run_pipeline(mode: str = "full"):
         )
         model = bdh.BDH(bdh_config)
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-        model.load_state_dict(checkpoint["model_state_dict"])
+        # Fix for torch.compile adding _orig_mod prefix
+        state_dict = checkpoint["model_state_dict"]
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("_orig_mod."):
+                new_state_dict[k[10:]] = v
+            else:
+                new_state_dict[k] = v
+        model.load_state_dict(new_state_dict)
     
     # Evaluation
     if mode in ["full", "eval"]:

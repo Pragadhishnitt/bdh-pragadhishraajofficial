@@ -176,7 +176,15 @@ def evaluate_hebbian(
     )
     
     base_model = bdh.BDH(bdh_config).to(device)
-    base_model.load_state_dict(checkpoint["model_state_dict"])
+    # Fix for torch.compile adding _orig_mod prefix
+    state_dict = checkpoint["model_state_dict"]
+    new_state_dict = {}
+    for k, v in state_dict.items():
+        if k.startswith("_orig_mod."):
+            new_state_dict[k[10:]] = v
+        else:
+            new_state_dict[k] = v
+    base_model.load_state_dict(new_state_dict)
     
     # Wrap with Hebbian inference
     hebbian_model = HebbianBDH(base_model).to(device)
