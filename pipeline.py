@@ -253,34 +253,49 @@ def run_pipeline(mode: str = "full"):
     if model is None and checkpoint_path:
         print(f"\nLoading checkpoint: {checkpoint_path}")
         import bdh
-        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
         
-        # Use config from checkpoint (matches training)
-        cfg = checkpoint.get("config", None)
-        if cfg is None:
-            from config import get_small_config
-            cfg = get_small_config()
-        
-        bdh_config = bdh.BDHConfig(
-            n_layer=cfg.model.n_layer,
-            n_embd=cfg.model.n_embd,
-            n_head=cfg.model.n_head,
-            dropout=cfg.model.dropout,
-            mlp_internal_dim_multiplier=cfg.model.mlp_internal_dim_multiplier,
-            vocab_size=cfg.model.vocab_size,
-        )
-        model = bdh.BDH(bdh_config)
-        
-        # Fix for torch.compile adding _orig_mod prefix
-        state_dict = checkpoint["model_state_dict"]
-        new_state_dict = {}
-        for k, v in state_dict.items():
-            if k.startswith("_orig_mod."):
-                new_state_dict[k[10:]] = v
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+            
+            # Use config from checkpoint (matches training)
+            cfg = checkpoint.get("config", None)
+            if cfg is None:
+                from config import get_small_config
+                cfg = get_small_config()
+            
+            bdh_config = bdh.BDHConfig(
+                n_layer=cfg.model.n_layer,
+                n_embd=cfg.model.n_embd,
+                n_head=cfg.model.n_head,
+                dropout=cfg.model.dropout,
+                mlp_internal_dim_multiplier=cfg.model.mlp_internal_dim_multiplier,
+                vocab_size=cfg.model.vocab_size,
+            )
+            model = bdh.BDH(bdh_config)
+            
+            # Fix for torch.compile adding _orig_mod prefix
+            state_dict = checkpoint["model_state_dict"]
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                if k.startswith("_orig_mod."):
+                    new_state_dict[k[10:]] = v
+                else:
+                    new_state_dict[k] = v
+            model.load_state_dict(new_state_dict)
+            print("✓ Model loaded")
+            
+        except Exception as e:
+            print(f"\n✗ ERROR: Corrupted checkpoint at {checkpoint_path}")
+            print(f"  Details: {e}")
+            
+            if mode in ["a100", "eval"]:
+                print("  ⚠ Falling back to training (auto-recovery)...")
+                model = run_training(config)
+                # Update checkpoint path to the new one
+                checkpoint_path = os.path.join(config.output_dir, "model_final.pt")
             else:
-                new_state_dict[k] = v
-        model.load_state_dict(new_state_dict)
-        print("✓ Model loaded")
+                print("  Cannot auto-recover in this mode. Please delete the corrupted file.")
+                raise e
     
     # Stage B: Evaluation
     if mode in ["full", "eval", "a100"]:
