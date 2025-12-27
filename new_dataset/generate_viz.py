@@ -24,9 +24,9 @@ try:
         plot_sec_scatter,
     )
     VIZ_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     VIZ_AVAILABLE = False
-    print("Warning: visualization module not available")
+    print(f"Warning: visualization module not available. Error: {e}")
 
 
 def generate_visualizations(checkpoint_path: str, output_dir: str = "output"):
