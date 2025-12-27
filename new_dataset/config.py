@@ -114,15 +114,15 @@ def get_a100_config() -> ExperimentConfig:
     config.model.n_head = 8           # vs 4 default
     config.model.mlp_internal_dim_multiplier = 128  # Keep same
     
-    # Large batch size - A100 can handle it
-    config.data.batch_size = 128      # vs 32 default (4x increase)
+    # Batch size - reduced for shared GPU environments
+    config.data.batch_size = 32       # Safe for 40GB A100 with other processes
     config.data.block_size = 512      # Keep same
     
     # Full training
     config.training.max_iters = 10000
     config.training.log_freq = 500
     config.training.eval_freq = 1000
-    config.training.save_freq = 2500
+    config.training.save_freq = 1000
     
     # A100 native bfloat16
     config.dtype = "bfloat16"
