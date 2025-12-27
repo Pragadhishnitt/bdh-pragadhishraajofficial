@@ -70,7 +70,7 @@ class MCLResult:
 
 def compute_tmi(
     model: nn.Module,
-    top_k_percent: float = 5.0,
+    top_k_percent: float = 2.0,  # Reduced from 5.0 for cleaner community structure
 ) -> TMIResult:
     """
     Compute Topological Modularity Index.

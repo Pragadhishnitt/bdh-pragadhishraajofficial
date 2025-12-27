@@ -186,8 +186,32 @@ def run_visualization(model, config):
         print(f"Visualization error (non-fatal): {e}")
 
 
+def find_checkpoint():
+    """Find the best available checkpoint."""
+    # Priority order
+    candidates = [
+        "outputs/checkpoints/model_final.pt",
+        "weights/model_final.pt",
+        "../weights/model_final.pt",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
+
 def run_pipeline(mode: str = "full"):
-    """Run the complete pipeline."""
+    """
+    Run the complete pipeline.
+    
+    Modes:
+        full   - Train + Eval + Viz (complete pipeline)
+        train  - Train only (Stage A)
+        eval   - Eval + Viz (will auto-train if no checkpoint)
+        viz    - Visualization only (requires checkpoint)
+        quick  - Quick test (100 iters, for debugging)
+        medium - Balanced for Kaggle (3000 iters)
+    """
     print("\n" + "=" * 60)
     print(f"BDH COMPETITION PIPELINE - MODE: {mode.upper()}")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -198,26 +222,37 @@ def run_pipeline(mode: str = "full"):
     check_environment()
     config = get_config(mode)
     
-    # Training
-    if mode in ["full", "train", "quick", "medium"]:
+    model = None
+    checkpoint_path = find_checkpoint()
+    
+    # Determine if we need to train
+    need_training = mode in ["full", "train", "quick", "medium"]
+    
+    # For eval mode: auto-train if no checkpoint exists
+    if mode == "eval" and checkpoint_path is None:
+        print("\n⚠ No checkpoint found. Will train first, then evaluate.")
+        need_training = True
+    
+    # For viz mode: require checkpoint
+    if mode == "viz" and checkpoint_path is None:
+        print("ERROR: --mode viz requires an existing checkpoint.")
+        print("Run with --mode eval or --mode train first.")
+        return
+    
+    # Stage A: Training
+    if need_training:
         model = run_training(config)
         checkpoint_path = os.path.join(config.output_dir, "model_final.pt")
-    else:
-        # Eval only - need existing checkpoint
-        checkpoint_path = "outputs/checkpoints/model_final.pt"
-        if not os.path.exists(checkpoint_path):
-            print(f"ERROR: Checkpoint not found at {checkpoint_path}")
-            print("Run with --mode train first.")
-            return
-        
-        # Load model for visualization
+    
+    # Load model if not already loaded (for eval/viz only modes)
+    if model is None and checkpoint_path:
+        print(f"\nLoading checkpoint: {checkpoint_path}")
         import bdh
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
         
         # Use config from checkpoint (matches training)
         cfg = checkpoint.get("config", None)
         if cfg is None:
-            # Fallback to small config (what training uses)
             from config import get_small_config
             cfg = get_small_config()
         
@@ -225,6 +260,8 @@ def run_pipeline(mode: str = "full"):
             n_layer=cfg.model.n_layer,
             n_embd=cfg.model.n_embd,
             n_head=cfg.model.n_head,
+            dropout=cfg.model.dropout,
+            mlp_internal_dim_multiplier=cfg.model.mlp_internal_dim_multiplier,
             vocab_size=cfg.model.vocab_size,
         )
         model = bdh.BDH(bdh_config)
@@ -238,17 +275,21 @@ def run_pipeline(mode: str = "full"):
             else:
                 new_state_dict[k] = v
         model.load_state_dict(new_state_dict)
+        print("✓ Model loaded")
     
-    # Evaluation
+    # Stage B: Evaluation
     if mode in ["full", "eval"]:
-        if os.path.exists(checkpoint_path):
+        if checkpoint_path and os.path.exists(checkpoint_path):
             run_evaluation(checkpoint_path, config)
         else:
             print("Skipping evaluation - no checkpoint found")
     
-    # Visualization
-    if mode in ["full", "eval", "quick"]:
-        run_visualization(model, config)
+    # Stage C: Visualization
+    if mode in ["full", "eval", "viz", "quick"]:
+        if model is not None:
+            run_visualization(model, config)
+        else:
+            print("Skipping visualization - no model available")
     
     # Summary
     print("\n" + "=" * 60)
@@ -258,6 +299,12 @@ def run_pipeline(mode: str = "full"):
     print("  Checkpoints:     outputs/checkpoints/")
     print("  Metrics:         outputs/metrics/")
     print("  Visualizations:  outputs/visualizations/")
+    print("\nGenerated files:")
+    for file in ["outputs/visualizations/topology_final.svg", 
+                 "outputs/metrics/hebbian_results.json",
+                 "outputs/metrics/tmi_results.json"]:
+        if os.path.exists(file):
+            print(f"  ✓ {file}")
     print("\nNext steps:")
     print("  1. Review outputs/visualizations/topology_final.svg")
     print("  2. Check outputs/metrics/hebbian_results.json")
@@ -265,12 +312,30 @@ def run_pipeline(mode: str = "full"):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="BDH Competition Pipeline")
+    parser = argparse.ArgumentParser(
+        description="BDH Competition Pipeline",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Modes:
+  full   - Complete pipeline: Train + Eval + Viz (5000 iters)
+  train  - Training only (Stage A)
+  eval   - Evaluation + Viz (auto-trains if no checkpoint)
+  viz    - Visualization only (requires checkpoint)
+  quick  - Quick test (100 iters, for debugging)
+  medium - Balanced for Kaggle (3000 iters)
+
+Examples:
+  python pipeline.py --mode eval     # Eval + Viz (trains if needed)
+  python pipeline.py --mode train    # Training only
+  python pipeline.py --mode viz      # Viz only (uses existing checkpoint)
+  python pipeline.py --mode full     # Everything
+"""
+    )
     parser.add_argument(
         "--mode", 
-        choices=["full", "medium", "train", "eval", "quick"],
-        default="medium",
-        help="Pipeline mode: full (5000 iters), medium (2000 iters), train, eval, quick (100 iters)"
+        choices=["full", "medium", "train", "eval", "viz", "quick"],
+        default="eval",
+        help="Pipeline mode (default: eval)"
     )
     args = parser.parse_args()
     

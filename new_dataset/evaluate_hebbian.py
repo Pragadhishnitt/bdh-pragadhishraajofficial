@@ -44,7 +44,7 @@ class HebbianBDH(nn.Module):
     activation correlations: "neurons that fire together, wire together".
     """
     
-    def __init__(self, base_model: bdh.BDH, learning_rate: float = 0.01):
+    def __init__(self, base_model: bdh.BDH, learning_rate: float = 0.005):
         super().__init__()
         self.model = base_model
         self.learning_rate = learning_rate
@@ -66,8 +66,8 @@ class HebbianBDH(nn.Module):
             for _ in range(config.n_layer)
         ])
         
-        # Damping factor for forgetting (prevents saturation)
-        self.damping = 0.99
+        # Damping factor for forgetting (lower = faster pruning of weak connections)
+        self.damping = 0.95
     
     def hebbian_update(self, x_sparse: torch.Tensor, layer: int) -> None:
         """
@@ -230,6 +230,10 @@ def evaluate_hebbian(
     untrained_perplexities = []
     gpt2_perplexities = []
     
+    # For SEC visualization - track sparsity and perplexity per step
+    sec_sparsity_values = []
+    sec_perplexity_values = []
+    
     # Evaluation loop - 5000 steps to match Stage A
     print("Running Hebbian inference evaluation...")
     print("Comparing: Trained BDH vs Untrained BDH vs GPT-2\n")
@@ -303,6 +307,17 @@ def evaluate_hebbian(
                 sigma_tracker.maybe_snapshot(
                     torch.cat([s.flatten() for s in hebbian_model.sigma])
                 )
+                
+                # Track SEC data (sparsity vs perplexity)
+                # Get activation sparsity from the last layer
+                with torch.no_grad():
+                    # Compute forward to get sparse activations
+                    x_emb = hebbian_model.model.ln(hebbian_model.model.embed(x))
+                    x_latent = x_emb.unsqueeze(1) @ hebbian_model.model.encoder
+                    x_sparse = torch.relu(x_latent)
+                    sparsity = (x_sparse > 0).float().mean().item()
+                    sec_sparsity_values.append(sparsity)
+                    sec_perplexity_values.append(trained_ppl)
             
             # GPT-2 baseline
             if gpt2_model is not None:
@@ -355,6 +370,23 @@ def evaluate_hebbian(
     if gpt2_perplexities:
         results["gpt2_mean_perplexity"] = np.mean(gpt2_perplexities)
         results["gpt2_std_perplexity"] = np.std(gpt2_perplexities)
+    
+    # Add raw data for visualization plots
+    # Save SPS snapshots (subsample to keep file size reasonable)
+    snapshot_subsample = max(1, len(sigma_tracker.snapshots) // 100)  # Keep ~100 snapshots
+    results["sps_snapshots"] = [s.tolist() for s in sigma_tracker.snapshots[::snapshot_subsample]]
+    
+    # Save SEC data (sparsity vs perplexity)
+    results["sec_sparsity_values"] = sec_sparsity_values
+    results["sec_perplexity_values"] = sec_perplexity_values
+    
+    # Compute SEC correlation
+    if len(sec_sparsity_values) > 10:
+        from dragon_metrics import compute_sec
+        sec_result = compute_sec(sec_sparsity_values, sec_perplexity_values)
+        results["sec_correlation"] = sec_result.correlation
+        results["sec_p_value"] = sec_result.p_value
+        print(f"\nSEC Correlation: r={sec_result.correlation:.4f}, p={sec_result.p_value:.4f}")
     
     # Summary
     print("\n" + "="*70)

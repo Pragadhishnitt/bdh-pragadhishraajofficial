@@ -36,7 +36,7 @@ class TrainingConfig:
     max_iters: int = 10000
     learning_rate: float = 1e-3
     weight_decay: float = 0.1
-    l1_lambda: float = 1e-4  # Sparsity regularization
+    l1_lambda: float = 5e-4  # Sparsity regularization (increased for better modularity)
     log_freq: int = 100
     eval_freq: int = 500
     save_freq: int = 1000

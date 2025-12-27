@@ -42,10 +42,10 @@ from dragon_metrics import compute_tmi, TMIResult
 def plot_topology(
     model: nn.Module,
     output_path: str = "output/topology.svg",
-    top_k_percent: float = 5.0,
+    top_k_percent: float = 2.0,  # Keep strongest 2% of edges for cleaner communities
     figsize: Tuple[int, int] = (12, 12),
     node_size_scale: float = 50.0,
-    max_nodes: int = 500,  # LIMIT nodes to prevent slow computation
+    max_nodes: int = 300,  # LIMIT nodes to prevent slow computation
 ) -> str:
     """
     Generate SVG visualization of learned graph structure.

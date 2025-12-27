@@ -133,7 +133,7 @@ def generate_visualizations(checkpoint_path: str, output_dir: str = "output", sk
         # Compute TMI
         print(f"\n      Step 1/3: Computing TMI (this takes time)...")
         try:
-            tmi_result = compute_tmi(model, top_k_percent=5.0)
+            tmi_result = compute_tmi(model, top_k_percent=2.0)
             print(f"      ✓ TMI Q={tmi_result.modularity_q:.4f}, Communities={tmi_result.num_communities}")
         except Exception as e:
             print(f"      ✗ TMI failed: {e}")
@@ -143,14 +143,14 @@ def generate_visualizations(checkpoint_path: str, output_dir: str = "output", sk
         if VIZ_AVAILABLE and tmi_result:
             print(f"\n      Step 2/3: Generating topology plot...")
             try:
-                plot_topology(model, output_path=os.path.join(output_dir, "topology.svg"), max_nodes=500)
+                plot_topology(model, output_path=os.path.join(output_dir, "topology.svg"), max_nodes=300)
             except Exception as e:
                 print(f"      ✗ Topology plot failed: {e}")
         
         # Export GEXF
         print(f"\n      Step 3/3: Exporting GEXF file...")
         try:
-            gexf_path = export_topology(model, epoch=9999, output_dir=output_dir, max_nodes=500)
+            gexf_path = export_topology(model, epoch=9999, output_dir=output_dir, max_nodes=300)
         except Exception as e:
             print(f"      ✗ GEXF export failed: {e}")
     
