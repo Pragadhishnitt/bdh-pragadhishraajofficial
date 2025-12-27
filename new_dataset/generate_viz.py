@@ -210,7 +210,7 @@ Examples:
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to model checkpoint")
     parser.add_argument("--output_dir", type=str, default="output", help="Output directory")
     parser.add_argument("--skip-topology", action="store_true", 
-                       help="Skip slow topology/TMI computation (saves 5-10 mins)")
+                       help="Skip slow topology/TMI computation (saves 5-10 mins)",default=False)
     args = parser.parse_args()
     
     generate_visualizations(args.checkpoint, args.output_dir, args.skip_topology)
