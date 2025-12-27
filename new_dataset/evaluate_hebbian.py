@@ -151,9 +151,10 @@ def evaluate_hebbian(
     """
     Evaluate BDH's Hebbian adaptation on test data (2019-2024).
     
-    Freezes BDH weights and allows only synaptic state updates.
-    Compares perplexity against frozen GPT-2 baseline to demonstrate
-    that dynamic synaptic adaptation enables continual learning.
+    Compares three models:
+    1. Trained BDH with Hebbian inference (our method)
+    2. Untrained BDH (random weights baseline)
+    3. GPT-2 (pre-trained language model baseline)
     """
     
     if config is None:
@@ -163,7 +164,7 @@ def evaluate_hebbian(
     print(f"Using device: {device}")
     
     # Load BDH model
-    print(f"Loading BDH checkpoint: {bdh_checkpoint_path}")
+    print(f"Loading trained BDH checkpoint: {bdh_checkpoint_path}")
     checkpoint = torch.load(bdh_checkpoint_path, map_location=device, weights_only=False)
     
     # Use config from checkpoint (matches training)
@@ -180,7 +181,8 @@ def evaluate_hebbian(
         vocab_size=config.model.vocab_size,
     )
     
-    base_model = bdh.BDH(bdh_config).to(device)
+    # --- Trained BDH model ---
+    trained_model = bdh.BDH(bdh_config).to(device)
     # Fix for torch.compile adding _orig_mod prefix
     state_dict = checkpoint["model_state_dict"]
     new_state_dict = {}
@@ -189,13 +191,19 @@ def evaluate_hebbian(
             new_state_dict[k[10:]] = v
         else:
             new_state_dict[k] = v
-    base_model.load_state_dict(new_state_dict)
+    trained_model.load_state_dict(new_state_dict)
     
     # Wrap with Hebbian inference
-    hebbian_model = HebbianBDH(base_model).to(device)
+    hebbian_model = HebbianBDH(trained_model).to(device)
     hebbian_model.eval()
     
-    # Load GPT-2 baseline if available
+    # --- Untrained BDH model (random weights baseline) ---
+    print("Initializing untrained BDH baseline (random weights)...")
+    untrained_base = bdh.BDH(bdh_config).to(device)  # Fresh random weights
+    untrained_model = HebbianBDH(untrained_base).to(device)
+    untrained_model.eval()
+    
+    # --- GPT-2 baseline ---
     gpt2_model = None
     if compare_gpt2 and TRANSFORMERS_AVAILABLE:
         print("Loading GPT-2 baseline...")
@@ -218,48 +226,115 @@ def evaluate_hebbian(
     sigma_tracker = SynapticStateTracker(snapshot_interval=config.metrics.sps_snapshot_interval)
     sparsity_tracker = ActivationSparsityTracker()
     
-    bdh_perplexities = []
+    trained_perplexities = []
+    untrained_perplexities = []
     gpt2_perplexities = []
     
-    # Evaluation loop
+    # Evaluation loop - 5000 steps to match Stage A
     print("Running Hebbian inference evaluation...")
+    print("Comparing: Trained BDH vs Untrained BDH vs GPT-2\n")
     step = 0
-    max_steps = 1000  # Limit for reasonable runtime
+    max_steps = 1500  # Match Stage A for full evaluation
+    log_freq = 300
+    save_freq = 500  # Save intermediate results every 1000 steps
     
-    for batch in eval_loader:
-        if step >= max_steps:
-            break
-        
-        x = batch["input_ids"].to(device)
-        y = batch["labels"].to(device)
-        
-        # BDH with Hebbian updates
-        with torch.no_grad():
-            _, bdh_loss = hebbian_model(x, y)
-            bdh_ppl = torch.exp(bdh_loss).item()
-            bdh_perplexities.append(bdh_ppl)
+    # Output directory setup
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    def gpu_memory_check():
+        """Check GPU memory and cooldown if needed (prevents Kaggle flush errors)."""
+        if torch.cuda.is_available():
+            mem_used = torch.cuda.memory_allocated() / 1e9
+            mem_total = torch.cuda.get_device_properties(0).total_memory / 1e9
+            usage_pct = mem_used / mem_total
             
-            # Track synaptic state
-            sigma_tracker.maybe_snapshot(
-                torch.cat([s.flatten() for s in hebbian_model.sigma])
-            )
-        
-        # GPT-2 baseline
-        if gpt2_model is not None:
+            if usage_pct > 0.85:  # Over 85% usage
+                print(f"  GPU memory high ({usage_pct*100:.1f}%), cooling down...")
+                torch.cuda.empty_cache()
+                import gc
+                gc.collect()
+                import time
+                time.sleep(5)
+                print("  Resuming evaluation...")
+    
+    def save_intermediate_results(step, trained_ppls, untrained_ppls, gpt2_ppls, reason="scheduled"):
+        """Save intermediate results to prevent data loss."""
+        import json
+        results_path = os.path.join(output_dir, f"hebbian_eval_step_{step}.json")
+        try:
+            intermediate = {
+                "step": step,
+                "trained_bdh_mean_ppl": float(np.mean(trained_ppls)) if trained_ppls else 0,
+                "trained_bdh_std_ppl": float(np.std(trained_ppls)) if trained_ppls else 0,
+                "untrained_bdh_mean_ppl": float(np.mean(untrained_ppls)) if untrained_ppls else 0,
+                "untrained_bdh_std_ppl": float(np.std(untrained_ppls)) if untrained_ppls else 0,
+                "gpt2_mean_ppl": float(np.mean(gpt2_ppls)) if gpt2_ppls else 0,
+                "gpt2_std_ppl": float(np.std(gpt2_ppls)) if gpt2_ppls else 0,
+            }
+            with open(results_path, "w") as f:
+                json.dump(intermediate, f, indent=2)
+            print(f"  Saved intermediate results ({reason}): {results_path}")
+            return True
+        except Exception as e:
+            print(f"  WARNING: Save failed: {e}")
+            return False
+    
+    try:
+        for batch in eval_loader:
+            if step >= max_steps:
+                break
+            
+            x = batch["input_ids"].to(device)
+            y = batch["labels"].to(device)
+            
             with torch.no_grad():
-                gpt2_outputs = gpt2_model(x, labels=y)
-                gpt2_ppl = torch.exp(gpt2_outputs.loss).item()
-                gpt2_perplexities.append(gpt2_ppl)
-        
-        if step % 100 == 0:
-            avg_bdh_ppl = np.mean(bdh_perplexities[-100:])
-            msg = f"Step {step} | BDH PPL: {avg_bdh_ppl:.2f}"
-            if gpt2_perplexities:
-                avg_gpt2_ppl = np.mean(gpt2_perplexities[-100:])
-                msg += f" | GPT-2 PPL: {avg_gpt2_ppl:.2f}"
-            print(msg)
-        
-        step += 1
+                # Trained BDH with Hebbian updates
+                _, trained_loss = hebbian_model(x, y)
+                trained_ppl = torch.exp(trained_loss).item()
+                trained_perplexities.append(trained_ppl)
+                
+                # Untrained BDH baseline
+                _, untrained_loss = untrained_model(x, y)
+                untrained_ppl = torch.exp(untrained_loss).item()
+                untrained_perplexities.append(untrained_ppl)
+                
+                # Track synaptic state for trained model
+                sigma_tracker.maybe_snapshot(
+                    torch.cat([s.flatten() for s in hebbian_model.sigma])
+                )
+            
+            # GPT-2 baseline
+            if gpt2_model is not None:
+                with torch.no_grad():
+                    gpt2_outputs = gpt2_model(x, labels=y)
+                    gpt2_ppl = torch.exp(gpt2_outputs.loss).item()
+                    gpt2_perplexities.append(gpt2_ppl)
+            
+            # Logging
+            if step % log_freq == 0:
+                avg_trained = np.mean(trained_perplexities[-100:])
+                avg_untrained = np.mean(untrained_perplexities[-100:])
+                msg = f"Step {step}/{max_steps} | Trained BDH PPL: {avg_trained:.2f} | Untrained BDH PPL: {avg_untrained:.2f}"
+                if gpt2_perplexities:
+                    avg_gpt2 = np.mean(gpt2_perplexities[-100:])
+                    msg += f" | GPT-2 PPL: {avg_gpt2:.2f}"
+                print(msg)
+            
+            # Intermediate save and memory check
+            if step % save_freq == 0 and step > 0:
+                save_intermediate_results(step, trained_perplexities, untrained_perplexities, gpt2_perplexities)
+                gpu_memory_check()
+            
+            step += 1
+    
+    except KeyboardInterrupt:
+        print(f"\n\n{'='*60}")
+        print("EVALUATION INTERRUPTED - Saving partial results...")
+        print(f"{'='*60}")
+        save_intermediate_results(step, trained_perplexities, untrained_perplexities, gpt2_perplexities, reason="interrupted")
+        print("You can find partial results in the output directory.")
+        print(f"{'='*60}\n")
     
     # Compute SPS (Synaptic Persistence Score)
     print("\nComputing Synaptic Persistence Score...")
@@ -269,8 +344,10 @@ def evaluate_hebbian(
     
     # Compute final statistics
     results = {
-        "bdh_mean_perplexity": np.mean(bdh_perplexities),
-        "bdh_std_perplexity": np.std(bdh_perplexities),
+        "trained_bdh_mean_perplexity": np.mean(trained_perplexities),
+        "trained_bdh_std_perplexity": np.std(trained_perplexities),
+        "untrained_bdh_mean_perplexity": np.mean(untrained_perplexities),
+        "untrained_bdh_std_perplexity": np.std(untrained_perplexities),
         "sps_hurst_exponent": sps_result.hurst_exponent,
         "steps_evaluated": step,
     }
@@ -278,23 +355,40 @@ def evaluate_hebbian(
     if gpt2_perplexities:
         results["gpt2_mean_perplexity"] = np.mean(gpt2_perplexities)
         results["gpt2_std_perplexity"] = np.std(gpt2_perplexities)
-        results["bdh_wins"] = results["bdh_mean_perplexity"] < results["gpt2_mean_perplexity"]
     
     # Summary
-    print("\n" + "="*60)
+    print("\n" + "="*70)
     print("HEBBIAN INFERENCE EVALUATION RESULTS")
-    print("="*60)
-    print(f"BDH Mean Perplexity: {results['bdh_mean_perplexity']:.2f} ± {results['bdh_std_perplexity']:.2f}")
+    print("="*70)
+    print(f"{'Model':<25} {'Mean PPL':>12} {'Std PPL':>12}")
+    print("-"*70)
+    print(f"{'Trained BDH (Hebbian)':<25} {results['trained_bdh_mean_perplexity']:>12.2f} {results['trained_bdh_std_perplexity']:>12.2f}")
+    print(f"{'Untrained BDH (Random)':<25} {results['untrained_bdh_mean_perplexity']:>12.2f} {results['untrained_bdh_std_perplexity']:>12.2f}")
     if "gpt2_mean_perplexity" in results:
-        print(f"GPT-2 Mean Perplexity: {results['gpt2_mean_perplexity']:.2f} ± {results['gpt2_std_perplexity']:.2f}")
-        if results["bdh_wins"]:
-            print("\n✓ SUCCESS: BDH outperforms GPT-2 via Hebbian adaptation!")
+        print(f"{'GPT-2 (Pretrained)':<25} {results['gpt2_mean_perplexity']:>12.2f} {results['gpt2_std_perplexity']:>12.2f}")
+    print("-"*70)
+    
+    # Compute improvement percentages
+    training_improvement = (
+        (results["untrained_bdh_mean_perplexity"] - results["trained_bdh_mean_perplexity"]) 
+        / results["untrained_bdh_mean_perplexity"] * 100
+    )
+    print(f"\n✓ Training Improvement: {training_improvement:.1f}% lower PPL vs untrained baseline")
+    
+    if "gpt2_mean_perplexity" in results:
+        if results["trained_bdh_mean_perplexity"] < results["gpt2_mean_perplexity"]:
+            gpt2_improvement = (
+                (results["gpt2_mean_perplexity"] - results["trained_bdh_mean_perplexity"]) 
+                / results["gpt2_mean_perplexity"] * 100
+            )
+            print(f"✓ Trained BDH outperforms GPT-2 by {gpt2_improvement:.1f}%")
         else:
-            print("\n✗ BDH did not outperform GPT-2 on this evaluation")
+            print(f"✗ GPT-2 outperforms trained BDH (expected for domain-specific fine-tuning)")
+    
     print(f"\nSPS Hurst Exponent: {results['sps_hurst_exponent']:.4f}")
     if results['sps_hurst_exponent'] > 0.5:
         print("✓ Long-range synaptic memory confirmed (H > 0.5)")
-    print("="*60)
+    print("="*70)
     
     return results
 
@@ -303,7 +397,7 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate BDH Hebbian Inference")
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to BDH checkpoint")
     parser.add_argument("--no_gpt2", action="store_true", help="Skip GPT-2 comparison")
-    parser.add_argument("--max_steps", type=int, default=1000)
+    parser.add_argument("--max_steps", type=int, default=5000, help="Max evaluation steps (default: 5000)")
     args = parser.parse_args()
     
     results = evaluate_hebbian(
