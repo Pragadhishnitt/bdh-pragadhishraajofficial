@@ -197,30 +197,24 @@ def evaluate_hebbian(
     hebbian_model = HebbianBDH(trained_model).to(device)
     hebbian_model.eval()
     
-    # --- Untrained BDH model (random weights baseline) ---
-    print("Initializing untrained BDH baseline (random weights)...")
-    untrained_base = bdh.BDH(bdh_config).to(device)  # Fresh random weights
-    untrained_model = HebbianBDH(untrained_base).to(device)
-    untrained_model.eval()
-    
-    # --- GPT-2 baseline ---
+    # --- Memory optimization: Load baselines lazily ---
+    # We'll load untrained BDH and GPT-2 only when needed and delete after
+    untrained_model = None
     gpt2_model = None
-    if compare_gpt2 and TRANSFORMERS_AVAILABLE:
-        print("Loading GPT-2 baseline...")
-        gpt2_model = GPT2LMHeadModel.from_pretrained("gpt2").to(device)
-        gpt2_model.eval()
-        for param in gpt2_model.parameters():
-            param.requires_grad = False
+    run_baselines = compare_gpt2  # Only run baselines if comparing
     
     # Load evaluation data (2019-2024)
     print("Loading evaluation data...")
+    # Use smaller batch size for evaluation to save memory
+    eval_batch_size = min(8, config.data.batch_size)  # Cap at 8 for T4 GPU
     _, _, eval_loader = create_data_loaders(
         pretrain_years=config.data.pretrain_years,
         eval_years=config.data.eval_years,
         sector=config.data.sector,
         block_size=config.data.block_size,
-        batch_size=config.data.batch_size,
+        batch_size=eval_batch_size,
     )
+    print(f"Using eval batch size: {eval_batch_size} (reduced for memory)")
     
     # Initialize trackers
     sigma_tracker = SynapticStateTracker(snapshot_interval=config.metrics.sps_snapshot_interval)
@@ -284,6 +278,9 @@ def evaluate_hebbian(
             print(f"  WARNING: Save failed: {e}")
             return False
     
+    # Initialize baselines lazily (memory optimization)
+    import gc
+    
     try:
         for batch in eval_loader:
             if step >= max_steps:
@@ -293,15 +290,10 @@ def evaluate_hebbian(
             y = batch["labels"].to(device)
             
             with torch.no_grad():
-                # Trained BDH with Hebbian updates
+                # Trained BDH with Hebbian updates (main model)
                 _, trained_loss = hebbian_model(x, y)
                 trained_ppl = torch.exp(trained_loss).item()
                 trained_perplexities.append(trained_ppl)
-                
-                # Untrained BDH baseline
-                _, untrained_loss = untrained_model(x, y)
-                untrained_ppl = torch.exp(untrained_loss).item()
-                untrained_perplexities.append(untrained_ppl)
                 
                 # Track synaptic state for trained model
                 sigma_tracker.maybe_snapshot(
@@ -309,22 +301,48 @@ def evaluate_hebbian(
                 )
                 
                 # Track SEC data (sparsity vs perplexity)
-                # Get activation sparsity from the last layer
-                with torch.no_grad():
-                    # Compute forward to get sparse activations
-                    x_emb = hebbian_model.model.ln(hebbian_model.model.embed(x))
-                    x_latent = x_emb.unsqueeze(1) @ hebbian_model.model.encoder
-                    x_sparse = torch.relu(x_latent)
-                    sparsity = (x_sparse > 0).float().mean().item()
-                    sec_sparsity_values.append(sparsity)
-                    sec_perplexity_values.append(trained_ppl)
+                x_emb = hebbian_model.model.ln(hebbian_model.model.embed(x))
+                x_latent = x_emb.unsqueeze(1) @ hebbian_model.model.encoder
+                x_sparse = torch.relu(x_latent)
+                sparsity = (x_sparse > 0).float().mean().item()
+                sec_sparsity_values.append(sparsity)
+                sec_perplexity_values.append(trained_ppl)
+                
+                # Clear intermediate tensors
+                del x_emb, x_latent, x_sparse
             
-            # GPT-2 baseline
-            if gpt2_model is not None:
+            # Run baselines only every 10 steps to save memory/time
+            if run_baselines and step % 10 == 0:
+                # Lazy load untrained BDH
+                if untrained_model is None:
+                    print("  Loading untrained BDH baseline...")
+                    untrained_base = bdh.BDH(bdh_config).to(device)
+                    untrained_model = HebbianBDH(untrained_base).to(device)
+                    untrained_model.eval()
+                
                 with torch.no_grad():
-                    gpt2_outputs = gpt2_model(x, labels=y)
-                    gpt2_ppl = torch.exp(gpt2_outputs.loss).item()
-                    gpt2_perplexities.append(gpt2_ppl)
+                    _, untrained_loss = untrained_model(x, y)
+                    untrained_ppl = torch.exp(untrained_loss).item()
+                    untrained_perplexities.append(untrained_ppl)
+                
+                # Lazy load GPT-2 (only if transformers available)
+                if gpt2_model is None and TRANSFORMERS_AVAILABLE:
+                    print("  Loading GPT-2 baseline...")
+                    gpt2_model = GPT2LMHeadModel.from_pretrained("gpt2").to(device)
+                    gpt2_model.eval()
+                    for param in gpt2_model.parameters():
+                        param.requires_grad = False
+                
+                if gpt2_model is not None:
+                    with torch.no_grad():
+                        gpt2_outputs = gpt2_model(x, labels=y)
+                        gpt2_ppl = torch.exp(gpt2_outputs.loss).item()
+                        gpt2_perplexities.append(gpt2_ppl)
+                
+                # Clear CUDA cache periodically
+                if step % 100 == 0:
+                    torch.cuda.empty_cache()
+                    gc.collect()
             
             # Logging
             if step % log_freq == 0:
