@@ -166,6 +166,11 @@ def evaluate_hebbian(
     print(f"Loading BDH checkpoint: {bdh_checkpoint_path}")
     checkpoint = torch.load(bdh_checkpoint_path, map_location=device, weights_only=False)
     
+    # Use config from checkpoint (matches training)
+    saved_config = checkpoint.get("config", None)
+    if saved_config is not None:
+        config = saved_config
+    
     bdh_config = bdh.BDHConfig(
         n_layer=config.model.n_layer,
         n_embd=config.model.n_embd,
