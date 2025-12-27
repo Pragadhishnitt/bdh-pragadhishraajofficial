@@ -115,7 +115,7 @@ def get_a100_config() -> ExperimentConfig:
     config.model.mlp_internal_dim_multiplier = 128  # Keep same
     
     # Batch size - reduced for shared GPU environments
-    config.data.batch_size = 32       # Safe for 40GB A100 with other processes
+    config.data.batch_size = 16       # Safe for 40GB A100 with other processes
     config.data.block_size = 512      # Keep same
     
     # Full training
