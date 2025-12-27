@@ -90,6 +90,9 @@ def get_config(mode: str):
     elif mode in ["full", "train"]:
         # Use small config for Kaggle/Colab (T4 GPU)
         config = get_small_config()
+        config.training.log_freq = 1000        # Log every 1000 steps
+        config.training.eval_freq = 1000       # Eval every 1000 steps  
+        config.training.save_freq = 2500       # Save checkpoints at 2500 & 5000
     else:
         config = get_default_config()
     
