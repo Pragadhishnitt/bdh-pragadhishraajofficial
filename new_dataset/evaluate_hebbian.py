@@ -245,7 +245,7 @@ def evaluate_hebbian(
     step = 0
     max_steps = 3000  # Increased from 1500 for reliable SPS statistics
     log_freq = 500
-    save_freq = 500  # Save intermediate results every 1000 steps
+    save_freq = 1000  # Save intermediate results every 1000 steps
     
     # Output directory setup
     output_dir = "output"

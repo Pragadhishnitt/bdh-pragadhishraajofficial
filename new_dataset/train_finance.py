@@ -385,16 +385,7 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
                 # Cooldown after heavy computation
                 gpu_memory_check()
             
-            # Save checkpoint
-            if step % config.training.save_freq == 0 and step > 0:
-                save_checkpoint(step)
-                
-                # Export topology
-                try:
-                    gexf_path = export_topology(model, step, config.output_dir)
-                    print(f"  Exported topology: {gexf_path}")
-                except Exception as e:
-                    print(f"  Topology export failed: {e}")
+            # Removed: Periodic checkpoint saves (now only saves at end)
             
             if dry_run and step >= 10:
                 print("Dry run complete!")
