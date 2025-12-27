@@ -232,7 +232,7 @@ def evaluate_hebbian(
     print("Running Hebbian inference evaluation...")
     print("Comparing: Trained BDH vs Untrained BDH vs GPT-2\n")
     step = 0
-    max_steps = 1500  # Match Stage A for full evaluation
+    max_steps = 1000  # Match Stage A for full evaluation
     log_freq = 300
     save_freq = 500  # Save intermediate results every 1000 steps
     
