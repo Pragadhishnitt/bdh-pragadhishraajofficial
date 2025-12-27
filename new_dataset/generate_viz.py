@@ -12,6 +12,7 @@ import argparse
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import numpy as np
 import torch
 import bdh
 from config import get_default_config
@@ -158,42 +159,6 @@ def generate_visualizations(checkpoint_path: str, output_dir: str = "output", sk
     print("="*70)
 
 
-def generate_visualizations(checkpoint_path: str, output_dir: str = "output"):
-    """Generate all visualizations from a trained checkpoint."""
-    
-    os.makedirs(output_dir, exist_ok=True)
-    config = get_default_config()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    print(f"Loading checkpoint: {checkpoint_path}")
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    
-    # Rebuild model
-    saved_config = checkpoint.get("config", config)
-    bdh_config = bdh.BDHConfig(
-        n_layer=saved_config.model.n_layer,
-        n_embd=saved_config.model.n_embd,
-        n_head=saved_config.model.n_head,
-        dropout=saved_config.model.dropout,
-        mlp_internal_dim_multiplier=saved_config.model.mlp_internal_dim_multiplier,
-        vocab_size=saved_config.model.vocab_size,
-    )
-    
-    model = bdh.BDH(bdh_config).to(device)
-    
-    # Fix torch.compile prefix
-    state_dict = checkpoint["model_state_dict"]
-    new_state_dict = {}
-    for k, v in state_dict.items():
-        if k.startswith("_orig_mod."):
-            new_state_dict[k[10:]] = v
-        else:
-            new_state_dict[k] = v
-    model.load_state_dict(new_state_dict)
-    model.eval()
-    
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Generate visualizations from checkpoint",
@@ -210,7 +175,7 @@ Examples:
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to model checkpoint")
     parser.add_argument("--output_dir", type=str, default="output", help="Output directory")
     parser.add_argument("--skip-topology", action="store_true", 
-                       help="Skip slow topology/TMI computation (saves 5-10 mins)",default=False)
+                       help="Skip slow topology/TMI computation (saves 5-10 mins)", default=False)
     args = parser.parse_args()
     
     generate_visualizations(args.checkpoint, args.output_dir, args.skip_topology)
