@@ -221,7 +221,7 @@ def run_pipeline(mode: str = "full"):
             vocab_size=cfg.model.vocab_size,
         )
         model = bdh.BDH(bdh_config)
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
         model.load_state_dict(checkpoint["model_state_dict"])
     
     # Evaluation
