@@ -26,7 +26,7 @@ except ImportError as e:
     print(f"Warning: visualization module not available. Error: {e}")
 
 
-def generate_visualizations(checkpoint_path: str, output_dir: str = "output", skip_topology: bool = False):
+def generate_visualizations(checkpoint_path: str, output_dir: str = "outputs/visualizations", skip_topology: bool = False):
     """
     Generate all visualizations from a trained checkpoint.
     
@@ -46,7 +46,7 @@ def generate_visualizations(checkpoint_path: str, output_dir: str = "output", sk
     # STEP 1: FAST PLOTS FROM SAVED JSON (Instant, <5 seconds)
     # ========================================================================
     
-    results_path = os.path.join(output_dir, "hebbian_results.json")
+    results_path = os.path.join("outputs/metrics", "hebbian_results.json")
     if os.path.exists(results_path):
         print(f"\n[1/4] Loading hebbian evaluation results...")
         print(f"      File: {results_path}")
@@ -173,7 +173,7 @@ Examples:
 """
     )
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to model checkpoint")
-    parser.add_argument("--output_dir", type=str, default="output", help="Output directory")
+    parser.add_argument("--output_dir", type=str, default="outputs/visualizations", help="Output directory")
     parser.add_argument("--skip-topology", action="store_true", 
                        help="Skip slow topology/TMI computation (saves 5-10 mins)", default=False)
     args = parser.parse_args()
