@@ -36,7 +36,7 @@ class TrainingConfig:
     max_iters: int = 10000
     learning_rate: float = 1e-3
     weight_decay: float = 0.1
-    l1_lambda: float = 5e-4  # Sparsity regularization (increased for better modularity)
+    l1_lambda: float = 1e-3  # Sparsity regularization (increased for better modularity)
     log_freq: int = 100
     eval_freq: int = 500
     save_freq: int = 1000
@@ -45,7 +45,7 @@ class TrainingConfig:
 @dataclass
 class MetricsConfig:
     """Frontier metrics configuration."""
-    tmi_top_k_percent: float = 5.0  # Edge sparsification threshold
+    tmi_top_k_percent: float = 3.0  # Edge sparsification threshold
     sps_snapshot_interval: int = 100  # Tokens between σ snapshots
     concepts: List[str] = field(default_factory=lambda: [
         "Inflation", "AI", "Dividend", "Layoffs", "Revenue", 
@@ -108,7 +108,7 @@ def get_a100_config() -> ExperimentConfig:
     config = ExperimentConfig()
     
     # Moderate model - fits in 40GB A100
-    config.model.n_layer = 4          # Reduced from 8
+    config.model.n_layer = 6          # Reduced from 8
     config.model.n_embd = 256         # Reduced from 512
     config.model.n_head = 4           # Reduced from 8
     config.model.mlp_internal_dim_multiplier = 128
