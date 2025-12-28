@@ -33,10 +33,10 @@ class DataConfig:
 @dataclass
 class TrainingConfig:
     """Training hyperparameters."""
-    max_iters: int = 10000
+    max_iters: int = 8000
     learning_rate: float = 1e-3
     weight_decay: float = 0.1
-    l1_lambda: float = 1e-3  # Sparsity regularization (increased for better modularity)
+    l1_lambda: float = 2e-3  # Sparsity regularization (increased for better modularity)
     log_freq: int = 100
     eval_freq: int = 500
     save_freq: int = 1000
@@ -45,7 +45,7 @@ class TrainingConfig:
 @dataclass
 class MetricsConfig:
     """Frontier metrics configuration."""
-    tmi_top_k_percent: float = 3.0  # Edge sparsification threshold
+    tmi_top_k_percent: float = 2.3  # Edge sparsification threshold
     sps_snapshot_interval: int = 100  # Tokens between σ snapshots
     concepts: List[str] = field(default_factory=lambda: [
         "Inflation", "AI", "Dividend", "Layoffs", "Revenue", 
@@ -82,7 +82,7 @@ def get_small_config() -> ExperimentConfig:
     config.model.n_layer = 4
     config.model.n_embd = 128
     config.data.batch_size = 16
-    config.training.max_iters = 10000
+    config.training.max_iters = 8000
     return config
 
 
@@ -118,7 +118,7 @@ def get_a100_config() -> ExperimentConfig:
     config.data.block_size = 512
     
     # Full training
-    config.training.max_iters = 10000
+    config.training.max_iters = 8000
     config.training.log_freq = 500
     config.training.eval_freq = 1000
     config.training.save_freq = 1000
