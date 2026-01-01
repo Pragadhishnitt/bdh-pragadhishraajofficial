@@ -242,7 +242,7 @@ def run_pipeline(mode: str = "full"):
     checkpoint_path = find_checkpoint()
     
     # Determine if we need to train
-    need_training = mode in ["full", "train", "quick", "medium"]
+    need_training = mode in ["full", "train", "quick", "medium", "tech", "tech_quick"]
     
     # For eval/a100 mode: auto-train if no checkpoint exists
     if mode in ["eval", "a100"] and checkpoint_path is None:
