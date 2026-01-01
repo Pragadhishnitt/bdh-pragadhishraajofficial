@@ -6,13 +6,17 @@ Run this in Kaggle to verify the filter works
 
 from datasets import load_dataset
 import sys
-sys.path.insert(0, 'new_dataset')
+import os
 
-from sector_registry import get_symbols_for_sector
-from data_filter import get_filter_strategy
+# Add new_dataset to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'new_dataset'))
+
+# Import with absolute imports (will work since we added to path)
+import sector_registry
+import data_filter
 
 # Get tech symbols from registry
-tech_symbols = set(get_symbols_for_sector('Technology'))
+tech_symbols = set(sector_registry.get_symbols_for_sector('Technology'))
 print(f"=== Tech Registry ===")
 print(f"Registered {len(tech_symbols)} tech symbols")
 print(f"Sample: {sorted(list(tech_symbols))[:10]}")
@@ -22,7 +26,7 @@ print(f"\n=== Dataset Test ===")
 dataset = load_dataset('kurry/sp500_earnings_transcripts', split='train[:1000]')
 
 # Test filter
-tech_filter = get_filter_strategy('technology')
+tech_filter = data_filter.get_filter_strategy('technology')
 matches = 0
 total = 0
 
