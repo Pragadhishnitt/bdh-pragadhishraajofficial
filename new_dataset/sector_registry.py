@@ -66,7 +66,7 @@ def is_registered(symbol: str) -> bool:
 # =============================================================================
 
 # Information Technology (GICS Sector 45)
-# Includes: Software, Hardware, IT Services, Semiconductors, Tech Hardware
+# Symbols verified to exist in kurry/sp500_earnings_transcripts dataset
 
 TECHNOLOGY_SYMBOLS = [
     # === MEGA CAP / FAANG+ ===
@@ -75,9 +75,9 @@ TECHNOLOGY_SYMBOLS = [
     "GOOGL",  # Alphabet Inc. Class A
     "GOOG",   # Alphabet Inc. Class C
     "META",   # Meta Platforms Inc.
-    "AMZN",   # Amazon.com Inc. (often classified as Consumer, but tech-heavy)
+    "AMZN",   # Amazon.com Inc.
     "NVDA",   # NVIDIA Corporation
-    "TSLA",   # Tesla Inc. (tech-forward automotive)
+    "TSLA",   # Tesla Inc.
     
     # === SEMICONDUCTORS ===
     "AMD",    # Advanced Micro Devices
@@ -89,7 +89,6 @@ TECHNOLOGY_SYMBOLS = [
     "AMAT",   # Applied Materials
     "LRCX",   # Lam Research
     "KLAC",   # KLA Corporation
-    "MRVL",   # Marvell Technology
     "ADI",    # Analog Devices
     "NXPI",   # NXP Semiconductors
     "ON",     # ON Semiconductor
@@ -99,75 +98,22 @@ TECHNOLOGY_SYMBOLS = [
     "MPWR",   # Monolithic Power Systems
     "SNPS",   # Synopsys Inc.
     "CDNS",   # Cadence Design Systems
-    "ASML",   # ASML Holding (ADR)
-    "TSM",    # Taiwan Semiconductor (ADR)
-    "ARM",    # Arm Holdings (ADR)
-    "GFS",    # GlobalFoundries
-    "WOLF",   # Wolfspeed Inc.
-    "SLAB",   # Silicon Laboratories
-    "RMBS",   # Rambus Inc.
-    "SMTC",   # Semtech Corporation
-    "DIOD",   # Diodes Incorporated
-    "POWI",   # Power Integrations
-    "SITM",   # SiTime Corporation
     
     # === SOFTWARE - ENTERPRISE ===
     "CRM",    # Salesforce Inc.
     "ORCL",   # Oracle Corporation
-    "SAP",    # SAP SE (ADR)
     "ADBE",   # Adobe Inc.
     "NOW",    # ServiceNow Inc.
     "INTU",   # Intuit Inc.
     "WDAY",   # Workday Inc.
-    "TEAM",   # Atlassian Corporation
-    "SNOW",   # Snowflake Inc.
-    "DDOG",   # Datadog Inc.
-    "PLTR",   # Palantir Technologies
-    "HUBS",   # HubSpot Inc.
-    "ZS",     # Zscaler Inc.
     "PANW",   # Palo Alto Networks
     "CRWD",   # CrowdStrike Holdings
     "FTNT",   # Fortinet Inc.
-    "SPLK",   # Splunk Inc.
-    "VEEV",   # Veeva Systems Inc.
     "ANSS",   # ANSYS Inc.
     "ADSK",   # Autodesk Inc.
     "PTC",    # PTC Inc.
-    "ROP",    # Roper Technologies
     "TYL",    # Tyler Technologies
     "PAYC",   # Paycom Software
-    "PCTY",   # Paylocity Holding
-    "MANH",   # Manhattan Associates
-    "BILL",   # Bill.com Holdings
-    "SMAR",   # Smartsheet Inc.
-    "APPF",   # AppFolio Inc.
-    "NCNO",   # nCino Inc.
-    "CFLT",   # Confluent Inc.
-    "MDB",    # MongoDB Inc.
-    "ESTC",   # Elastic N.V.
-    "NET",    # Cloudflare Inc.
-    "OKTA",   # Okta Inc.
-    "MNDY",   # monday.com Ltd.
-    "ZI",     # ZoomInfo Technologies
-    "DOCN",   # DigitalOcean Holdings
-    "PATH",   # UiPath Inc.
-    "GTLB",   # GitLab Inc.
-    "DOCU",   # DocuSign Inc.
-    "ZM",     # Zoom Video Communications
-    "BOX",    # Box Inc.
-    "DBX",    # Dropbox Inc.
-    "FIVN",   # Five9 Inc.
-    "TWLO",   # Twilio Inc.
-    "U",      # Unity Software Inc.
-    "RBLX",   # Roblox Corporation
-    "AI",     # C3.ai Inc.
-    "UPST",   # Upstart Holdings
-    "S",      # SentinelOne Inc.
-    "TENB",   # Tenable Holdings
-    "RPD",    # Rapid7 Inc.
-    "VRNS",   # Varonis Systems
-    "QLYS",   # Qualys Inc.
-    "CYBR",   # CyberArk Software
     
     # === IT SERVICES & CONSULTING ===
     "IBM",    # International Business Machines
@@ -177,13 +123,7 @@ TECHNOLOGY_SYMBOLS = [
     "IT",     # Gartner Inc.
     "EPAM",   # EPAM Systems
     "GDDY",   # GoDaddy Inc.
-    "WEX",    # WEX Inc.
-    "G",      # Genpact Limited
     "LDOS",   # Leidos Holdings
-    "SAIC",   # Science Applications International
-    "BAH",    # Booz Allen Hamilton
-    "CACI",   # CACI International
-    "CLVT",   # Clarivate Plc
     
     # === HARDWARE & EQUIPMENT ===
     "HPQ",    # HP Inc.
@@ -192,85 +132,45 @@ TECHNOLOGY_SYMBOLS = [
     "WDC",    # Western Digital
     "STX",    # Seagate Technology
     "NTAP",   # NetApp Inc.
-    "PSTG",   # Pure Storage
     "ANET",   # Arista Networks
     "JNPR",   # Juniper Networks
     "MSI",    # Motorola Solutions
     "ZBRA",   # Zebra Technologies
     "KEYS",   # Keysight Technologies
     "TER",    # Teradyne Inc.
-    "COHR",   # Coherent Corp.
-    "IPGP",   # IPG Photonics
-    "MKSI",   # MKS Instruments
-    "LOGI",   # Logitech International
-    "CRSR",   # Corsair Gaming
     "SMCI",   # Super Micro Computer
     
     # === FINTECH / PAYMENTS ===
     "V",      # Visa Inc.
     "MA",     # Mastercard Inc.
     "PYPL",   # PayPal Holdings
-    "SQ",     # Block Inc. (Square)
     "FIS",    # Fidelity National Information Services
-    "FISV",   # Fiserv Inc.
+    "FI",     # Fiserv Inc.
     "GPN",    # Global Payments
     "ADP",    # Automatic Data Processing
     "PAYX",   # Paychex Inc.
-    "FI",     # Fiserv Inc.
-    "COIN",   # Coinbase Global
-    "HOOD",   # Robinhood Markets
-    "SOFI",   # SoFi Technologies
-    "AFRM",   # Affirm Holdings
-    "SHOP",   # Shopify Inc.
     
     # === INTERNET & DIGITAL MEDIA ===
     "NFLX",   # Netflix Inc.
-    "DIS",    # Walt Disney (streaming tech)
-    "SPOT",   # Spotify Technology
-    "SNAP",   # Snap Inc.
-    "PINS",   # Pinterest Inc.
-    "MTCH",   # Match Group
-    "ABNB",   # Airbnb Inc.
     "BKNG",   # Booking Holdings
     "UBER",   # Uber Technologies
-    "LYFT",   # Lyft Inc.
     "DASH",   # DoorDash Inc.
     "ETSY",   # Etsy Inc.
     "EBAY",   # eBay Inc.
-    "W",      # Wayfair Inc.
-    "CHWY",   # Chewy Inc.
-    "YELP",   # Yelp Inc.
     "TRIP",   # Tripadvisor Inc.
     "TTWO",   # Take-Two Interactive
     "EA",     # Electronic Arts
-    "ATVI",   # Activision Blizzard (now part of MSFT)
+    "ATVI",   # Activision Blizzard
     
-    # === CLOUD INFRASTRUCTURE ===
-    # (Many already listed under enterprise software)
-    "DLR",    # Digital Realty Trust (Data Centers)
-    "EQIX",   # Equinix Inc. (Data Centers)
-    "AMT",    # American Tower (Infrastructure)
-    "CCI",    # Crown Castle (Infrastructure)
+    # === CLOUD INFRASTRUCTURE / DATA CENTERS ===
+    "DLR",    # Digital Realty Trust
+    "EQIX",   # Equinix Inc.
+    "AMT",    # American Tower
+    "CCI",    # Crown Castle
     
-    # === AI / ML FOCUSED ===
-    "GOOG",   # Google/Alphabet (DeepMind, etc.)
-    "NVDA",   # NVIDIA (AI chips)
-    "AMD",    # AMD (AI accelerators)
-    "MSFT",   # Microsoft (OpenAI partnership)
-    "META",   # Meta (LLaMA, AI research)
-    "PLTR",   # Palantir (AI analytics)
-    "AI",     # C3.ai
-    "BBAI",   # BigBear.ai
-    "SOUN",   # SoundHound AI
-    
-    # === EMERGING / HIGH-GROWTH TECH ===
-    "IONQ",   # IonQ Inc. (Quantum Computing)
-    "RGTI",   # Rigetti Computing
-    "LAZR",   # Luminar Technologies (Lidar)
-    "VLDR",   # Velodyne Lidar
-    "OPEN",   # Opendoor Technologies
-    "COUR",   # Coursera Inc.
-    "DUOL",   # Duolingo Inc.
+    # === AI / ML / EMERGING TECH ===
+    "PLTR",   # Palantir Technologies
+    "ENPH",   # Enphase Energy (tech-forward clean energy)
 ]
 
 # Register Technology sector
