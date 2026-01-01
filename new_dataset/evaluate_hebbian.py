@@ -16,13 +16,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import bdh
-from .config import ExperimentConfig, get_default_config
-from .finance_loader import create_data_loaders
-from .data_filter import get_filter_strategy
-from .dragon_metrics import (
-    SynapticStateTracker, compute_sps,
-    ActivationSparsityTracker, compute_sec,
-)
+
+# Handle both package and standalone imports
+try:
+    from .config import ExperimentConfig, get_default_config
+    from .finance_loader import create_data_loaders
+    from .data_filter import get_filter_strategy
+    from .dragon_metrics import (
+        SynapticStateTracker, compute_sps,
+        ActivationSparsityTracker, compute_sec,
+    )
+except ImportError:
+    from config import ExperimentConfig, get_default_config
+    from finance_loader import create_data_loaders
+    from data_filter import get_filter_strategy
+    from dragon_metrics import (
+        SynapticStateTracker, compute_sps,
+        ActivationSparsityTracker, compute_sec,
+    )
 
 try:
     import wandb

@@ -17,13 +17,24 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 import bdh
-from .config import ExperimentConfig, get_default_config, get_small_config, get_debug_config, get_config
-from .finance_loader import FinanceDataset, create_data_loaders
-from .data_filter import get_filter_strategy
-from .dragon_metrics import (
-    compute_tmi, export_topology,
-    ActivationSparsityTracker, compute_sec,
-)
+
+# Handle both package and standalone imports
+try:
+    from .config import ExperimentConfig, get_default_config, get_small_config, get_debug_config, get_config
+    from .finance_loader import FinanceDataset, create_data_loaders
+    from .data_filter import get_filter_strategy
+    from .dragon_metrics import (
+        compute_tmi, export_topology,
+        ActivationSparsityTracker, compute_sec,
+    )
+except ImportError:
+    from config import ExperimentConfig, get_default_config, get_small_config, get_debug_config, get_config
+    from finance_loader import FinanceDataset, create_data_loaders
+    from data_filter import get_filter_strategy
+    from dragon_metrics import (
+        compute_tmi, export_topology,
+        ActivationSparsityTracker, compute_sec,
+    )
 
 try:
     import wandb

@@ -25,7 +25,11 @@ Usage:
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 
-from .sector_registry import get_symbols_for_sector, is_registered, get_sector
+# Handle both package and standalone imports
+try:
+    from .sector_registry import get_symbols_for_sector, is_registered, get_sector
+except ImportError:
+    from sector_registry import get_symbols_for_sector, is_registered, get_sector
 
 
 # =============================================================================
