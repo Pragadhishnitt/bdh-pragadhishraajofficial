@@ -16,9 +16,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import bdh
-from config import ExperimentConfig, get_default_config
-from finance_loader import create_data_loaders
-from dragon_metrics import (
+from .config import ExperimentConfig, get_default_config
+from .finance_loader import create_data_loaders
+from .data_filter import get_filter_strategy
+from .dragon_metrics import (
     SynapticStateTracker, compute_sps,
     ActivationSparsityTracker, compute_sec,
 )
@@ -212,14 +213,17 @@ def evaluate_hebbian(
     
     # Load evaluation data (2019-2024)
     print("Loading evaluation data...")
-    # Load evaluation data (2019-2024)
-    print("Loading evaluation data...")
     # Use config batch size (A100 can handle 128+, T4 needs ~8)
     eval_batch_size = config.data.batch_size
+    
+    # Get filter strategy from config
+    filter_strategy = get_filter_strategy(config.data.filter_strategy)
+    print(f"Using filter: {filter_strategy.description}")
+    
     _, _, eval_loader = create_data_loaders(
         pretrain_years=config.data.pretrain_years,
         eval_years=config.data.eval_years,
-        sector=config.data.sector,
+        filter_strategy=filter_strategy,
         block_size=config.data.block_size,
         batch_size=eval_batch_size,
     )
@@ -237,13 +241,13 @@ def evaluate_hebbian(
     sec_sparsity_values = []
     sec_perplexity_values = []
     
-    # Evaluation loop - 5000 steps for reliable SPS Hurst estimation
+    # Evaluation loop - use config for max steps (Stage B)
     # CRITICAL: SPS needs ~50+ snapshots for stable Hurst; with interval=100, need 5000+ steps
     print("Running Hebbian inference evaluation...")
     print("Comparing: Trained BDH vs Untrained BDH vs GPT-2\n")
     print(f"Damping = {hebbian_model.damping} (must be >= 0.99 for H > 0.5)")
     step = 0
-    max_steps = 3000  # Increased from 1500 for reliable SPS statistics
+    max_steps = config.metrics.eval_max_steps  # From config (default: 3000, tech: 6000)
     log_freq = 500
     save_freq = 1000  # Save intermediate results every 1000 steps
     

@@ -2,10 +2,11 @@
 BDH Competition Experiment Configuration
 
 Centralized hyperparameters matching specifications.
+Open/Closed Principle: Add new configs without modifying existing ones.
 """
 
 from dataclasses import dataclass, field
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 
 @dataclass
@@ -23,7 +24,7 @@ class ModelConfig:
 class DataConfig:
     """Data pipeline configuration."""
     dataset_name: str = "kurry/sp500_earnings_transcripts"
-    sector: str = "Technology"
+    filter_strategy: str = "all"  # "all", "technology", "sector:<name>"
     pretrain_years: Tuple[int, int] = (2005, 2018)  # Stage A
     eval_years: Tuple[int, int] = (2019, 2024)       # Stage B
     block_size: int = 512
@@ -47,10 +48,21 @@ class MetricsConfig:
     """Frontier metrics configuration."""
     tmi_top_k_percent: float = 2.3  # Edge sparsification threshold
     sps_snapshot_interval: int = 100  # Tokens between σ snapshots
+    eval_max_steps: int = 3000  # Max steps for Hebbian evaluation (Stage B)
     concepts: List[str] = field(default_factory=lambda: [
         "Inflation", "AI", "Dividend", "Layoffs", "Revenue", 
         "Guidance", "Headwinds", "EBITDA", "Margin"
     ])
+
+
+@dataclass
+class ThresholdAnalysisConfig:
+    """Configuration for sparsity threshold analysis."""
+    enabled: bool = False
+    sparsity_thresholds: List[float] = field(default_factory=lambda: [
+        0.1, 0.2, 0.3, 0.5, 0.7, 0.9
+    ])
+    output_file: str = "threshold_analysis.json"
 
 
 @dataclass
@@ -60,6 +72,7 @@ class ExperimentConfig:
     data: DataConfig = field(default_factory=DataConfig)
     training: TrainingConfig = field(default_factory=TrainingConfig)
     metrics: MetricsConfig = field(default_factory=MetricsConfig)
+    threshold_analysis: ThresholdAnalysisConfig = field(default_factory=ThresholdAnalysisConfig)
     
     # Experiment tracking
     use_wandb: bool = True
@@ -70,6 +83,10 @@ class ExperimentConfig:
     device: str = "cuda"
     dtype: str = "bfloat16"
 
+
+# =============================================================================
+# CONFIG PRESETS (Open for Extension)
+# =============================================================================
 
 def get_default_config() -> ExperimentConfig:
     """Return default experiment configuration."""
@@ -127,4 +144,83 @@ def get_a100_config() -> ExperimentConfig:
     config.dtype = "bfloat16"
     
     return config
+
+
+# =============================================================================
+# TECHNOLOGY-FOCUSED PRESET
+# =============================================================================
+
+def get_tech_config() -> ExperimentConfig:
+    """
+    Technology sector focused pipeline.
+    
+    Same logic as default, but:
+    - Filters data to Technology sector only
+    - Stage A (Training): 12k iterations
+    - Stage B (Hebbian Eval): 6k steps
+    """
+    config = get_a100_config()
+    
+    # Technology filter - only difference in data
+    config.data.filter_strategy = "technology"
+    
+    # Stage A: 12k training iterations
+    config.training.max_iters = 12000
+    config.training.log_freq = 1000
+    config.training.eval_freq = 2000
+    config.training.save_freq = 4000
+    
+    # Stage B: 6k evaluation steps
+    config.metrics.eval_max_steps = 6000
+    
+    return config
+
+
+def get_tech_quick_config() -> ExperimentConfig:
+    """Quick tech test config (100 training iters, 50 eval steps)."""
+    config = get_tech_config()
+    config.training.max_iters = 100
+    config.training.log_freq = 10
+    config.training.eval_freq = 50
+    config.training.save_freq = 50
+    config.metrics.eval_max_steps = 50
+    config.use_wandb = False
+    return config
+
+
+# =============================================================================
+# CONFIG FACTORY
+# =============================================================================
+
+_CONFIG_REGISTRY = {
+    "default": get_default_config,
+    "small": get_small_config,
+    "debug": get_debug_config,
+    "a100": get_a100_config,
+    "tech": get_tech_config,
+    "tech_quick": get_tech_quick_config,
+}
+
+
+def get_config(name: str) -> ExperimentConfig:
+    """
+    Factory function to get config by name.
+    
+    Args:
+        name: Config preset name
+        
+    Returns:
+        ExperimentConfig instance
+    """
+    name_lower = name.lower()
+    if name_lower not in _CONFIG_REGISTRY:
+        available = list(_CONFIG_REGISTRY.keys())
+        raise ValueError(f"Unknown config: '{name}'. Available: {available}")
+    return _CONFIG_REGISTRY[name_lower]()
+
+
+def list_configs() -> List[str]:
+    """List all available config presets."""
+    return list(_CONFIG_REGISTRY.keys())
+
 

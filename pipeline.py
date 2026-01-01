@@ -72,7 +72,10 @@ def check_environment():
 
 def get_config(mode: str):
     """Get configuration based on mode."""
-    from config import get_default_config, get_small_config, get_debug_config, get_a100_config
+    from config import (
+        get_default_config, get_small_config, get_debug_config, get_a100_config,
+        get_tech_config, get_tech_quick_config,
+    )
     
     if mode == "quick":
         config = get_debug_config()
@@ -97,6 +100,14 @@ def get_config(mode: str):
         # A100 optimized (80-90GB VRAM)
         config = get_a100_config()
         print("A100 Mode: batch_size=128, n_layer=8, n_embd=512, bfloat16")
+    elif mode == "tech":
+        # Technology sector focused - 12k training, 6k eval
+        config = get_tech_config()
+        print(f"Tech Mode: 12k training iters, 6k eval steps, tech filter")
+    elif mode == "tech_quick":
+        # Quick tech test
+        config = get_tech_quick_config()
+        print("Tech Quick Mode: 100 iters for testing")
     else:
         config = get_default_config()
     
@@ -337,23 +348,28 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Modes:
-  full   - Complete pipeline: Train + Eval + Viz (5000 iters)
-  train  - Training only (Stage A)
-  eval   - Evaluation + Viz (auto-trains if no checkpoint)
-  viz    - Visualization only (requires checkpoint)
-  quick  - Quick test (100 iters, for debugging)
-  medium - Balanced for Kaggle (3000 iters)
+  full       - Complete pipeline: Train + Eval + Viz (8000 iters)
+  train      - Training only (Stage A)
+  eval       - Evaluation + Viz (auto-trains if no checkpoint)
+  viz        - Visualization only (requires checkpoint)
+  quick      - Quick test (100 iters, for debugging)
+  medium     - Balanced for Kaggle (3000 iters)
+  a100       - A100 optimized mode
+  
+  ## Technology Sector Focused ##
+  tech       - Tech sector: 12k training + 6k eval, filtered data
+  tech_quick - Tech sector: quick test (100 iters)
 
 Examples:
-  python pipeline.py --mode eval     # Eval + Viz (trains if needed)
-  python pipeline.py --mode train    # Training only
-  python pipeline.py --mode viz      # Viz only (uses existing checkpoint)
-  python pipeline.py --mode full     # Everything
+  python pipeline.py --mode tech       # Tech focused (12k train, 6k eval)
+  python pipeline.py --mode eval       # Eval + Viz (trains if needed)
+  python pipeline.py --mode full       # Everything
 """
     )
     parser.add_argument(
         "--mode", 
-        choices=["full", "medium", "train", "eval", "viz", "quick", "a100"],
+        choices=["full", "medium", "train", "eval", "viz", "quick", "a100", 
+                 "tech", "tech_quick"],
         default="eval",
         help="Pipeline mode (default: eval)"
     )

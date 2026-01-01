@@ -6,11 +6,15 @@ Uses GPT-2 BPE tokenization for text encoding.
 """
 
 import os
-from typing import Iterator, Dict, Any, Optional, Tuple
+from typing import Iterator, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 
 import torch
 from torch.utils.data import IterableDataset, DataLoader
+
+# Import filter strategy (lazy to avoid circular imports)
+if TYPE_CHECKING:
+    from data_filter import DataFilterStrategy
 
 try:
     from datasets import load_dataset
@@ -47,14 +51,14 @@ class FinanceDataset(IterableDataset):
         self,
         start_year: int = 2005,
         end_year: int = 2024,
-        sector: str = "Technology",
+        filter_strategy: Optional["DataFilterStrategy"] = None,
         block_size: int = 512,
         split: str = "train",
         tokenizer_name: str = "gpt2",
     ):
         self.start_year = start_year
         self.end_year = end_year
-        self.sector = sector
+        self.filter_strategy = filter_strategy
         self.block_size = block_size
         self.split = split
         
@@ -90,13 +94,18 @@ class FinanceDataset(IterableDataset):
                 if year is None:
                     continue
                 if self.start_year <= year <= self.end_year:
-                    if self._matches_sector(item):
+                    if self._matches_filter(item):
                         filtered.append(item)
             
             # Sort chronologically
             filtered.sort(key=lambda x: self._extract_date(x))
             self._data = filtered
-            print(f"Loaded {len(filtered)} transcripts from {self.start_year}-{self.end_year}")
+            
+            # Log with filter info
+            filter_name = self.filter_strategy.name if self.filter_strategy else "all"
+            print(f"Loaded {len(filtered)} transcripts from {self.start_year}-{self.end_year} (filter: {filter_name})")
+            if self.filter_strategy:
+                print(f"  Filter: {self.filter_strategy.description}")
             
         except Exception as e:
             print(f"Warning: Could not load HuggingFace dataset: {e}")
@@ -132,14 +141,11 @@ class FinanceDataset(IterableDataset):
             return str(item["date"])
         return "0000-00-00"
     
-    def _matches_sector(self, item: Dict[str, Any]) -> bool:
-        """Check if item matches the target sector."""
-        # NOTE: This dataset doesn't have sector info, so skip filtering
-        # All S&P 500 companies are included
-        if self.sector is None:
+    def _matches_filter(self, item: Dict[str, Any]) -> bool:
+        """Check if item passes the filter strategy."""
+        if self.filter_strategy is None:
             return True
-        # Dataset doesn't have sector field, accept all
-        return True
+        return self.filter_strategy.should_include(item)
     
     def _create_fallback_data(self) -> list:
         """Create minimal fallback data for development/testing."""
@@ -207,7 +213,7 @@ class FinanceDataset(IterableDataset):
 def create_data_loaders(
     pretrain_years: Tuple[int, int] = (2005, 2018),
     eval_years: Tuple[int, int] = (2019, 2024),
-    sector: str = "Technology",
+    filter_strategy: Optional["DataFilterStrategy"] = None,
     block_size: int = 512,
     batch_size: int = 32,
     num_workers: int = 0,
@@ -220,6 +226,15 @@ def create_data_loaders(
     - Train: 2005-2018 (first 80%)
     - Val: 2005-2018 (last 20%)
     - Test: 2019-2024 (for Hebbian inference evaluation)
+    
+    Args:
+        pretrain_years: (start, end) year range for training
+        eval_years: (start, end) year range for evaluation
+        filter_strategy: DataFilterStrategy to filter data (None = all data)
+        block_size: Token sequence length
+        batch_size: Batch size for dataloaders
+        num_workers: Number of dataloader workers
+        val_split: Fraction of training data to use for validation
     
     Returns:
         (train_loader, val_loader, test_loader)
@@ -235,7 +250,7 @@ def create_data_loaders(
     full_dataset = FinanceDataset(
         start_year=pretrain_years[0],
         end_year=pretrain_years[1],
-        sector=sector,
+        filter_strategy=filter_strategy,
         block_size=block_size,
     )
     
@@ -247,11 +262,13 @@ def create_data_loaders(
     train_dataset = FinanceDataset.__new__(FinanceDataset)
     train_dataset.block_size = block_size
     train_dataset.tokenizer = full_dataset.tokenizer
+    train_dataset.filter_strategy = filter_strategy
     train_dataset._data = all_data[:split_idx]
     
     val_dataset = FinanceDataset.__new__(FinanceDataset)
     val_dataset.block_size = block_size
     val_dataset.tokenizer = full_dataset.tokenizer
+    val_dataset.filter_strategy = filter_strategy
     val_dataset._data = all_data[split_idx:]
     
     print(f"Train: {len(train_dataset._data)} transcripts, Val: {len(val_dataset._data)} transcripts")
@@ -274,7 +291,7 @@ def create_data_loaders(
     eval_dataset = FinanceDataset(
         start_year=eval_years[0],
         end_year=eval_years[1],
-        sector=sector,
+        filter_strategy=filter_strategy,
         block_size=block_size,
     )
     

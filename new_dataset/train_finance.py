@@ -17,9 +17,10 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 import bdh
-from config import ExperimentConfig, get_default_config, get_small_config, get_debug_config
-from finance_loader import FinanceDataset, create_data_loaders
-from dragon_metrics import (
+from .config import ExperimentConfig, get_default_config, get_small_config, get_debug_config, get_config
+from .finance_loader import FinanceDataset, create_data_loaders
+from .data_filter import get_filter_strategy
+from .dragon_metrics import (
     compute_tmi, export_topology,
     ActivationSparsityTracker, compute_sec,
 )
@@ -220,10 +221,15 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
     
     # Data loader (now with train/val/test split)
     print("Loading training data...")
+    
+    # Get filter strategy from config
+    filter_strategy = get_filter_strategy(config.data.filter_strategy)
+    print(f"Using filter: {filter_strategy.description}")
+    
     train_loader, val_loader, eval_loader = create_data_loaders(
         pretrain_years=config.data.pretrain_years,
         eval_years=config.data.eval_years,
-        sector=config.data.sector,
+        filter_strategy=filter_strategy,
         block_size=config.data.block_size,
         batch_size=config.data.batch_size,
     )
