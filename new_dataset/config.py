@@ -152,14 +152,14 @@ def get_a100_config() -> ExperimentConfig:
 
 def get_tech_config() -> ExperimentConfig:
     """
-    Technology sector focused pipeline.
+    Technology sector focused pipeline for P100/Kaggle/Colab.
     
-    Same logic as default, but:
+    Uses small config (batch=32) for 16GB GPUs.
     - Filters data to Technology sector only
     - Stage A (Training): 12k iterations
     - Stage B (Hebbian Eval): 6k steps
     """
-    config = get_a100_config()
+    config = get_small_config()  # Use small config for P100 (16GB)
     
     # Technology filter - only difference in data
     config.data.filter_strategy = "technology"
