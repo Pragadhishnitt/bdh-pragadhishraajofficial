@@ -306,11 +306,35 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
             with ctx:
                 logits, loss = model(x, y)
                 
-                # L1 sparsity regularization
+                # L1 activation sparsity regularization (existing)
                 sparsity_penalty = hook_manager.get_sparsity_penalty()
                 if isinstance(sparsity_penalty, torch.Tensor):
                     sparsity_penalty = sparsity_penalty.to(device)
-                total_loss = loss + config.training.l1_lambda * sparsity_penalty
+                
+                # L2,1 Group Lasso weight regularization (NEW - for modularity)
+                # Encourages clustering in encoder/decoder weight matrices
+                # L2,1 norm = sum of L2 norms across groups (encourages group sparsity)
+                
+                # Get base model (unwrap torch.compile if present)
+                base_model = model._orig_mod if hasattr(model, '_orig_mod') else model
+                
+                # Encoder: (nh, D, N) - group across D dimension to cluster neurons
+                # We want groups of neurons to either all activate or all stay silent
+                encoder_l21 = torch.norm(base_model.encoder, p=2, dim=1).mean()
+                
+                # Decoder: (nh*N, D) - group across D dimension 
+                decoder_l21 = torch.norm(base_model.decoder, p=2, dim=1).mean()
+                
+                # encoder_v: (nh, D, N) - same as encoder
+                encoder_v_l21 = torch.norm(base_model.encoder_v, p=2, dim=1).mean()
+                
+                # Total L2,1 penalty
+                l21_penalty = encoder_l21 + decoder_l21 + encoder_v_l21
+                
+                # Combined loss: CE + L1 (activation) + L2,1 (weight clustering)
+                total_loss = (loss + 
+                             config.training.l1_lambda * sparsity_penalty + 
+                             config.training.l21_lambda * l21_penalty)
             
             # Track metrics
             loss_acc += loss.item()
@@ -321,6 +345,9 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
                 activations=hook_manager.activations[-1] if hook_manager.activations else torch.zeros(1),
                 loss=loss.item(),
             )
+            
+            # Store L2,1 penalty for logging (detach to avoid memory leak)
+            current_l21_penalty = l21_penalty.item() if isinstance(l21_penalty, torch.Tensor) else 0.0
             
             # Backward pass
             if scaler is not None:
@@ -342,6 +369,7 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
                 print(f"Step {step}/{config.training.max_iters} | "
                       f"Loss: {avg_loss:.4f} | "
                       f"Sparsity: {mean_sparsity:.4f} | "
+                      f"L2,1: {current_l21_penalty:.4f} | "
                       f"LR: {current_lr:.6f}")
                 
                 if config.use_wandb and WANDB_AVAILABLE:
@@ -350,6 +378,7 @@ def train(config: Optional[ExperimentConfig] = None, dry_run: bool = False):
                         "train/sparsity": mean_sparsity,
                         "train/lr": current_lr,
                         "train/l1_penalty": sparsity_penalty.item() if isinstance(sparsity_penalty, torch.Tensor) else sparsity_penalty,
+                        "train/l21_penalty": current_l21_penalty,
                     }, step=step)
                 
                 loss_acc = 0.0
