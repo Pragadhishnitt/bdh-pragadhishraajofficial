@@ -244,7 +244,7 @@ def run_pipeline(mode: str = "full", sector: str = "all", reg: str = "both"):
     # Setup
     dirs = setup_directories()
     check_environment()
-    config = get_config(mode)
+    config = get_config(mode, sector)
     
     # Apply sector filter (if specified)
     if sector != "all":
