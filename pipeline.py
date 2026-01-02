@@ -215,13 +215,14 @@ def find_checkpoint():
     return None
 
 
-def run_pipeline(mode: str = "full", sector: str = "all"):
+def run_pipeline(mode: str = "full", sector: str = "all", reg: str = "both"):
     """
     Run the complete pipeline.
     
     Args:
         mode: Pipeline mode (full/train/eval/viz/quick/medium/a100/tech/tech_quick)
         sector: Sector filter (technology/healthcare/financials/energy/all)
+        reg: Regularization type (l1/l21/both)
     
     Modes:
         full   - Train + Eval + Viz (complete pipeline)
@@ -236,6 +237,7 @@ def run_pipeline(mode: str = "full", sector: str = "all"):
     print(f"BDH COMPETITION PIPELINE - MODE: {mode.upper()}")
     if sector != "all":
         print(f"SECTOR: {sector.upper()}")
+    print(f"REGULARIZATION: {reg.upper()}")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
     
@@ -249,6 +251,17 @@ def run_pipeline(mode: str = "full", sector: str = "all"):
         config.data.filter_strategy = sector
         print(f"\n✓ Data filter: {sector} sector")
     
+    # Apply regularization type
+    if reg == "l1":
+        # L1 only: disable L2,1
+        config.training.l21_lambda = 0.0
+        print(f"✓ Regularization: L1 only (λ={config.training.l1_lambda})")
+    elif reg == "l21":
+        # L2,1 only: disable L1
+        config.training.l1_lambda = 0.0
+        print(f"✓ Regularization: L2,1 only (λ={config.training.l21_lambda})")
+    else:  # both
+        print(f"✓ Regularization: L1 + L2,1 (λ_l1={config.training.l1_lambda}, λ_l21={config.training.l21_lambda})")
     model = None
     checkpoint_path = find_checkpoint()
     
@@ -377,10 +390,10 @@ Sectors:
   all         - No filtering (default)
 
 Examples:
-  python pipeline.py --mode train --sector technology
-  python pipeline.py --mode train --sector healthcare
-  python pipeline.py --mode eval --sector financials
-  python pipeline.py --mode quick --sector energy
+  python pipeline.py --mode train --sector technology --reg l1
+  python pipeline.py --mode train --sector healthcare --reg l21
+  python pipeline.py --mode train --sector financials --reg both
+  python pipeline.py --mode eval --sector technology
 """
     )
     parser.add_argument(
@@ -396,9 +409,15 @@ Examples:
         default="all",
         help="Sector to train on (default: all)"
     )
+    parser.add_argument(
+        "--reg",
+        choices=["l1", "l21", "both"],
+        default="both",
+        help="Regularization type for Stage A: l1 (activation), l21 (weight clustering), both (default: both)"
+    )
     args = parser.parse_args()
     
-    run_pipeline(args.mode, sector=args.sector)
+    run_pipeline(args.mode, sector=args.sector, reg=args.reg)
 
 
 if __name__ == "__main__":
