@@ -225,7 +225,7 @@ def evaluate_hebbian(
     # Load evaluation data (2019-2024)
     print("Loading evaluation data...")
     # Use config batch size (A100 can handle 128+, T4 needs ~8)
-    eval_batch_size = config.data.batch_size
+    eval_batch_size = min(8, config.data.batch_size)
     
     # Get filter strategy from config
     filter_strategy = get_filter_strategy(config.data.filter_strategy)

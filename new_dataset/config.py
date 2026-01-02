@@ -49,7 +49,7 @@ class MetricsConfig:
     """Frontier metrics configuration."""
     tmi_top_k_percent: float = 2.3  # Edge sparsification threshold
     sps_snapshot_interval: int = 100  # Tokens between σ snapshots
-    eval_max_steps: int = 3000  # Max steps for Hebbian evaluation (Stage B)
+    eval_max_steps: int = 1500  # Max steps for Hebbian evaluation (Stage B)
     concepts: List[str] = field(default_factory=lambda: [
         "Inflation", "AI", "Dividend", "Layoffs", "Revenue", 
         "Guidance", "Headwinds", "EBITDA", "Margin"
