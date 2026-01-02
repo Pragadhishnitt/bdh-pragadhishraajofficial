@@ -461,10 +461,13 @@ def evaluate_hebbian(
         else:
             print(f"✗ GPT-2 outperforms trained BDH (expected for domain-specific fine-tuning)")
     
-    print(f"\nSPS Hurst Exponent: {results['sps_hurst_exponent']:.4f}")
-    if results['sps_hurst_exponent'] > 0.5:
-        print("✓ Long-range synaptic memory confirmed (H > 0.5)")
-    print("="*70)
+    # Print Frontier Metrics
+    print("\nFRONTIER METRICS")
+    print("-" * 70)
+    print(f"SPS Hurst Exponent: {results['sps_hurst_exponent']:.4f} (Target: >0.5)")
+    if "sec_correlation" in results:
+        print(f"SEC Correlation:    r={results['sec_correlation']:.4f}, p={results['sec_p_value']:.4f} (Target: r>0)")
+    print("-" * 70)
     
     return results
 
