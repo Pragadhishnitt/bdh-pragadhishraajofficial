@@ -258,9 +258,11 @@ def evaluate_hebbian(
     print("Comparing: Trained BDH vs Untrained BDH vs GPT-2\n")
     print(f"Damping = {hebbian_model.damping} (must be >= 0.99 for H > 0.5)")
     step = 0
-    max_steps = config.metrics.eval_max_steps  # From config (default: 3000, tech: 6000)
+    max_steps = min(1500, config.metrics.eval_max_steps)  # FORCE 1500 max
     log_freq = 500
     save_freq = 500  # Save intermediate results every 500 steps
+    
+    print(f"Max evaluation steps: {max_steps}")  # Debug print
     
     # Output directory setup
     output_dir = "output"
