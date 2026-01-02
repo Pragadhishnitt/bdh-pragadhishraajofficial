@@ -260,7 +260,7 @@ def evaluate_hebbian(
     step = 0
     max_steps = config.metrics.eval_max_steps  # From config (default: 3000, tech: 6000)
     log_freq = 500
-    save_freq = 1000  # Save intermediate results every 1000 steps
+    save_freq = 500  # Save intermediate results every 500 steps
     
     # Output directory setup
     output_dir = "output"
