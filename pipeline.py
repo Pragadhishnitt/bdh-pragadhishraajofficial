@@ -70,8 +70,8 @@ def check_environment():
     print("=" * 60)
 
 
-def get_config(mode: str):
-    """Get configuration based on mode."""
+def get_config(mode: str, sector: str = "all"):
+    """Get configuration based on mode and sector."""
     from config import (
         get_default_config, get_small_config, get_debug_config, get_a100_config,
         get_tech_config, get_tech_quick_config,
@@ -101,15 +101,21 @@ def get_config(mode: str):
         config = get_a100_config()
         print("A100 Mode: batch_size=128, n_layer=8, n_embd=512, bfloat16")
     elif mode == "tech":
-        # Technology sector focused - 12k training, 6k eval
+        # Technology sector focused - 12k training, 1500 eval
         config = get_tech_config()
-        print(f"Tech Mode: 12k training iters, 6k eval steps, tech filter")
+        print(f"Tech Mode: 12k training iters, 1500 eval steps, tech filter")
     elif mode == "tech_quick":
         # Quick tech test
         config = get_tech_quick_config()
         print("Tech Quick Mode: 100 iters for testing")
+    elif mode == "eval" and sector == "technology":
+        # If evaluating tech sector, use tech config
+        config = get_tech_config()
+        print(f"Eval Mode (Tech): Using tech config (1500 eval steps)")
     else:
         config = get_default_config()
+        # Override default eval steps to 1500
+        config.metrics.eval_max_steps = 1500
     
     # Ensure outputs go to our directory
     config.output_dir = "outputs/checkpoints"
