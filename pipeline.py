@@ -215,9 +215,13 @@ def find_checkpoint():
     return None
 
 
-def run_pipeline(mode: str = "full"):
+def run_pipeline(mode: str = "full", sector: str = "all"):
     """
     Run the complete pipeline.
+    
+    Args:
+        mode: Pipeline mode (full/train/eval/viz/quick/medium/a100/tech/tech_quick)
+        sector: Sector filter (technology/healthcare/financials/energy/all)
     
     Modes:
         full   - Train + Eval + Viz (complete pipeline)
@@ -230,6 +234,8 @@ def run_pipeline(mode: str = "full"):
     """
     print("\n" + "=" * 60)
     print(f"BDH COMPETITION PIPELINE - MODE: {mode.upper()}")
+    if sector != "all":
+        print(f"SECTOR: {sector.upper()}")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
     
@@ -237,6 +243,11 @@ def run_pipeline(mode: str = "full"):
     dirs = setup_directories()
     check_environment()
     config = get_config(mode)
+    
+    # Apply sector filter (if specified)
+    if sector != "all":
+        config.data.filter_strategy = sector
+        print(f"\n✓ Data filter: {sector} sector")
     
     model = None
     checkpoint_path = find_checkpoint()
@@ -355,15 +366,21 @@ Modes:
   quick      - Quick test (100 iters, for debugging)
   medium     - Balanced for Kaggle (3000 iters)
   a100       - A100 optimized mode
-  
-  ## Technology Sector Focused ##
-  tech       - Tech sector: 12k training + 6k eval, filtered data
-  tech_quick - Tech sector: quick test (100 iters)
+  tech       - Tech sector preset (12k train + 6k eval)
+  tech_quick - Tech sector quick test
+
+Sectors:
+  technology  - Tech companies (FAANG+, semiconductors, software)
+  healthcare  - Pharma, providers, medical devices
+  financials  - Banks, asset management, insurance
+  energy      - Oil & gas exploration, refining, services
+  all         - No filtering (default)
 
 Examples:
-  python pipeline.py --mode tech       # Tech focused (12k train, 6k eval)
-  python pipeline.py --mode eval       # Eval + Viz (trains if needed)
-  python pipeline.py --mode full       # Everything
+  python pipeline.py --mode train --sector technology
+  python pipeline.py --mode train --sector healthcare
+  python pipeline.py --mode eval --sector financials
+  python pipeline.py --mode quick --sector energy
 """
     )
     parser.add_argument(
@@ -373,9 +390,15 @@ Examples:
         default="eval",
         help="Pipeline mode (default: eval)"
     )
+    parser.add_argument(
+        "--sector",
+        choices=["technology", "healthcare", "financials", "energy", "all"],
+        default="all",
+        help="Sector to train on (default: all)"
+    )
     args = parser.parse_args()
     
-    run_pipeline(args.mode)
+    run_pipeline(args.mode, sector=args.sector)
 
 
 if __name__ == "__main__":

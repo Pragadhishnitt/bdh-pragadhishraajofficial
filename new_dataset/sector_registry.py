@@ -178,34 +178,141 @@ register_sector("Technology", TECHNOLOGY_SYMBOLS)
 
 
 # =============================================================================
-# FUTURE SECTOR TEMPLATES (Commented out - uncomment to enable)
+# HEALTHCARE SECTOR - S&P 500 Healthcare Companies
 # =============================================================================
 
-# Healthcare sector template (for future extension)
-# HEALTHCARE_SYMBOLS = [
-#     "JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY", "TMO", "ABT", "DHR", "BMY",
-#     "AMGN", "GILD", "CVS", "CI", "ELV", "HUM", "CNC", "MCK", "CAH", "ABC",
-#     "ISRG", "SYK", "MDT", "BDX", "ZBH", "BSX", "EW", "HOLX", "ALGN", "DXCM",
-#     "VRTX", "REGN", "BIIB", "MRNA", "BNTX", ...
-# ]
-# register_sector("Healthcare", HEALTHCARE_SYMBOLS)
+HEALTHCARE_SYMBOLS = [
+    # === PHARMA ===
+    "JNJ",    # Johnson & Johnson
+    "PFE",    # Pfizer Inc.
+    "ABBV",   # AbbVie Inc.
+    "MRK",    # Merck & Co.
+    "LLY",    # Eli Lilly
+    "BMY",    # Bristol-Myers Squibb
+    "AMGN",   # Amgen Inc.
+    "GILD",   # Gilead Sciences
+    "VRTX",   # Vertex Pharmaceuticals
+    "REGN",   # Regeneron Pharmaceuticals
+    "BIIB",   # Biogen Inc.
+    "MRNA",   # Moderna Inc.
+    
+    # === HEALTHCARE PROVIDERS ===
+    "UNH",    # UnitedHealth Group
+    "CVS",    # CVS Health
+    "CI",     # Cigna Group
+    "ELV",    # Elevance Health
+    "HUM",    # Humana Inc.
+    "CNC",    # Centene Corporation
+    "MCK",    # McKesson Corporation
+    "CAH",    # Cardinal Health
+    "ABC",    # AmerisourceBergen
+    
+    # === MEDICAL DEVICES ===
+    "TMO",    # Thermo Fisher Scientific
+    "ABT",    # Abbott Laboratories
+    "DHR",    # Danaher Corporation
+    "ISRG",   # Intuitive Surgical
+    "SYK",    # Stryker Corporation
+    "MDT",    # Medtronic plc
+    "BDX",    # Becton Dickinson
+    "ZBH",    # Zimmer Biomet
+    "BSX",    # Boston Scientific
+    "EW",     # Edwards Lifesciences
+    "HOLX",   # Hologic Inc.
+    "ALGN",   # Align Technology
+    "DXCM",   # DexCom Inc.
+]
 
-# Financials sector template
-# FINANCIALS_SYMBOLS = [
-#     "JPM", "BAC", "WFC", "C", "GS", "MS", "BLK", "SCHW", "AXP", "USB",
-#     "PNC", "TFC", "COF", "BK", "STT", "NTRS", "KEY", "RF", "CFG", "HBAN",
-#     "AIG", "MET", "PRU", "ALL", "TRV", "CB", "AON", "MMC", "SPGI", "MCO",
-#     ...
-# ]
-# register_sector("Financials", FINANCIALS_SYMBOLS)
+register_sector("Healthcare", HEALTHCARE_SYMBOLS)
 
-# Energy sector template
-# ENERGY_SYMBOLS = [
-#     "XOM", "CVX", "COP", "EOG", "SLB", "PXD", "MPC", "PSX", "VLO", "OXY",
-#     "WMB", "KMI", "OKE", "HAL", "BKR", "DVN", "FANG", "HES", "MRO", "APA",
-#     ...
-# ]
-# register_sector("Energy", ENERGY_SYMBOLS)
+
+# =============================================================================
+# FINANCIALS SECTOR - S&P 500 Financial Companies
+# =============================================================================
+
+FINANCIALS_SYMBOLS = [
+    # === BANKS ===
+    "JPM",    # JPMorgan Chase
+    "BAC",    # Bank of America
+    "WFC",    # Wells Fargo
+    "C",      # Citigroup
+    "GS",     # Goldman Sachs
+    "MS",     # Morgan Stanley
+    "USB",    # U.S. Bancorp
+    "PNC",    # PNC Financial
+    "TFC",    # Truist Financial
+    "COF",    # Capital One
+    "BK",     # Bank of New York Mellon
+    "STT",    # State Street
+    "NTRS",   # Northern Trust
+    "KEY",    # KeyCorp
+    "RF",     # Regions Financial
+    "CFG",    # Citizens Financial
+    "HBAN",   # Huntington Bancshares
+    
+    # === ASSET MANAGEMENT ===
+    "BLK",    # BlackRock
+    "SCHW",   # Charles Schwab
+    "AXP",    # American Express
+    "SPGI",   # S&P Global
+    "MCO",    # Moody's Corporation
+    "ICE",    # Intercontinental Exchange
+    "CME",    # CME Group
+    "NDAQ",   # Nasdaq Inc.
+    
+    # === INSURANCE ===
+    "AIG",    # American International Group
+    "MET",    # MetLife
+    "PRU",    # Prudential Financial
+    "ALL",    # Allstate
+    "TRV",    # Travelers
+    "CB",     # Chubb Limited
+    "AON",    # Aon plc
+    "MMC",    # Marsh McLennan
+    "AFL",    # Aflac
+    "PGR",    # Progressive Corporation
+]
+
+register_sector("Financials", FINANCIALS_SYMBOLS)
+
+
+# =============================================================================
+# ENERGY SECTOR - S&P 500 Energy Companies
+# =============================================================================
+
+ENERGY_SYMBOLS = [
+    # === OIL & GAS EXPLORATION ===
+    "XOM",    # Exxon Mobil
+    "CVX",    # Chevron Corporation
+    "COP",    # ConocoPhillips
+    "EOG",    # EOG Resources
+    "PXD",    # Pioneer Natural Resources
+    "OXY",    # Occidental Petroleum
+    "DVN",    # Devon Energy
+    "FANG",   # Diamondback Energy
+    "HES",    # Hess Corporation
+    "MRO",    # Marathon Oil
+    "APA",    # APA Corporation
+    
+    # === OIL & GAS REFINING ===
+    "MPC",    # Marathon Petroleum
+    "PSX",    # Phillips 66
+    "VLO",    # Valero Energy
+    
+    # === OILFIELD SERVICES ===
+    "SLB",    # Schlumberger
+    "HAL",    # Halliburton
+    "BKR",    # Baker Hughes
+    
+    # === MIDSTREAM ===
+    "WMB",    # Williams Companies
+    "KMI",    # Kinder Morgan
+    "OKE",    # ONEOK Inc.
+    "TRGP",   # Targa Resources
+    "LNG",    # Cheniere Energy
+]
+
+register_sector("Energy", ENERGY_SYMBOLS)
 
 
 # =============================================================================
