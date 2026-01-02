@@ -168,7 +168,7 @@ def get_tech_config() -> ExperimentConfig:
     # Stage A: 12k training iterations
     config.training.max_iters = 12000
     config.training.log_freq = 1000
-    config.training.eval_freq = 2000
+    config.training.eval_freq = 1500
     config.training.save_freq = 4000
     
     # Stage B: 6k evaluation steps
