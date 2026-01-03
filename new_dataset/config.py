@@ -172,7 +172,7 @@ def get_tech_config() -> ExperimentConfig:
     config.training.save_freq = 4000
     
     # Stage B: 6k evaluation steps
-    config.metrics.eval_max_steps = 1500
+    config.metrics.eval_max_steps = 1501
     
     return config
 

@@ -258,7 +258,7 @@ def evaluate_hebbian(
     print("Comparing: Trained BDH vs Untrained BDH vs GPT-2\n")
     print(f"Damping = {hebbian_model.damping} (must be >= 0.99 for H > 0.5)")
     step = 0
-    max_steps = min(1500, config.metrics.eval_max_steps)  # FORCE 1500 max
+    max_steps = min(1501, config.metrics.eval_max_steps)  # FORCE 1500 max
     log_freq = 500
     save_freq = 500  # Save intermediate results every 500 steps
     
@@ -312,6 +312,9 @@ def evaluate_hebbian(
     try:
         for batch in eval_loader:
             if step >= max_steps:
+                # Save final results before breaking
+                print(f"\nReached max_steps ({max_steps}). Saving final results...")
+                save_intermediate_results(step, trained_perplexities, untrained_perplexities, gpt2_perplexities, reason="completed")
                 break
             
             x = batch["input_ids"].to(device)
@@ -402,6 +405,7 @@ def evaluate_hebbian(
     sps_result = compute_sps(sigma_tracker.snapshots)
     print(f"SPS Hurst Exponent: {sps_result.hurst_exponent:.4f}")
     print(f"  (H > 0.5 indicates long-range dependence)")
+    print(f"  Snapshots collected: {len(sigma_tracker.snapshots)}")
     
     # Compute final statistics
     results = {

@@ -115,7 +115,7 @@ def get_config(mode: str, sector: str = "all"):
     else:
         config = get_default_config()
         # Override default eval steps to 1500
-        config.metrics.eval_max_steps = 1500
+        config.metrics.eval_max_steps = 1501
     
     # Ensure outputs go to our directory
     config.output_dir = "outputs/checkpoints"
