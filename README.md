@@ -1,95 +1,132 @@
-# Baby Dragon Hatchling
+# BDH for Financial Reasoning: Bridging Neuroscience and Market Dynamics
 
-## **Bridging the Gap Between Transformers and the Brain**
+**Baby Dragon Hatchling (BDH)** is a biologically inspired neural network architecture that combines sparse, interpretable activations with Hebbian working memory.
 
-**Baby Dragon Hatchling (BDH)** is a biologically inspired large language model architecture that connects principles of deep learning with the foundations of neuroscience. Developed by researchers at [Pathway](https://pathway.com), BDH provides a theoretical and practical framework for understanding the emergence of reasoning and generalization in artificial systems.
+> **This repository contains a specialized implementation of BDH adapted for the Financial Domain (Track 2, Path A).**
+> We explore how BDH's "neurons that fire together, wire together" dynamics can capture the evolving regimes of financial markets using S&P 500 earnings transcripts.
 
-This repository contains the official implementation from the paper:
-> *A. Kosowski, P. Uznański, J. Chorowski, Z. Stamirowska, M. Bartoszkiewicz.*
-> [_The Dragon Hatchling: The Missing Link between the Transformer and Models of the Brain_](https://doi.org/10.48550/arXiv.2509.26507), arXiv (2025).
+---
 
+## 🚀 Key Features
 
-## Overview
+*   **Two-Stage Protocol**:
+    *   **Stage A (Pre-training)**: Learns a modular, sparse representation of financial language using **L1 + L2,1 regularization**.
+    *   **Stage B (Hebbian Inference)**: Freezes weights and enables **dynamic synaptic plasticity** to adapt to new market regimes (2019-2024) without retraining.
+*   **Frontier Metrics**: Implements **TMI** (Topological Modularity), **SPS** (Synaptic Persistence), and **SEC** (Sparsity-Entropy Correlation) to validate brain-like behavior.
+*   **Domain-Specific Design**: Tailored for financial text with **Strict Causal Masking** and **Rotary Position Embeddings (RoPE)** for long-range context.
 
-BDH represents a **scale-free, locally interacting network of neurons** capable of intrinsic reasoning dynamics. BDH scales like a Transformer on performance benchmarks—yet retains full interpretability and theoretical grounding in the fine-grained dynamics of neuron interactions.
+---
 
-**Key properties:**
-
-- **Scale-free network topology** mimicking biological connectivity
-- **Locally interacting neuron particles** with excitatory/inhibitory dynamics
-- **Hebbian working memory** based on synaptic plasticity, displaying monosemanticity
-- **GPU-friendly state-space formulation** for efficient implementation
-- **Interpretable activations** that are sparse and positive
-
-BDH formalizes a bridge between **neural computation and machine-based language understanding**. It shows how **macro reasoning behavior** in large AI models emerges from **micro-level neuron dynamics**, guided by principles of graph theory and local computation.
-
-Empirically, BDH matches **GPT-2–scale Transformers** across language and translation tasks at equivalent parameter scales (10M–1B).
-
-
-***
-
-## Architecture
-
-<img src="figs/architecture.png" width="600"/>
-
-***
-
-## Relation to Transformers
-
-<img src="figs/vocab.png" width="600"/>
-
-BDH and the Transformer share attention-inspired computation; however, BDH’s graph-based architecture makes its attention **emerge naturally from neuron-level interactions**, reflecting attention as seen in biological systems.
-
-***
-
-## Scaling Laws
-
-<img src="figs/bdh_scaling.png" width="600"/>
-
-BDH follows **Transformer-like scaling laws**, maintaining parameter efficiency while achieving interpretability at any scale.
-
-***
-
-## Installation and Training
+## 🛠️ Installation
 
 ```bash
-# install dependencies
-pip install -r requirements.txt
+# Clone the repository
+git clone https://github.com/Pragadhishnitt/bdh-pragadhishraajofficial.git
+cd bdh-pragadhishraajofficial
 
-# train BDH on a toy dataset
-python train.py
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-<!--For visualization and interpretability analysis, explore the example notebooks in `notebooks/`.-->
+---
 
+## 🏃 Usage
 
+We provide a unified `pipeline.py` to handle training, evaluation, and visualization.
 
-## Learn and Discuss
+### Command Structure
+```bash
+python pipeline.py --mode <MODE> --sector <SECTOR> --reg <REGULARIZATION>
+```
 
-- Watch the *SuperDataScience podcast* [▶️ *Dragon Hatchling: The Missing Link Between Transformers and the Brain*](https://www.youtube.com/watch?v=mfV44-mtg7c) (72 min.) featuring Adrian Kosowski in conversation with Jon Krohn, unpacking BDH’s neuron-level architecture and sparse reasoning dynamics.
+### Available Options
 
-- Read about BDH in
-[*Forbes*](https://www.forbes.com/sites/victordey/2025/10/08/can-ai-learn-and-evolve-like-a-brain-pathways-bold-research-thinks-so/),
-[*Semafor*](https://www.semafor.com/article/10/01/2025/new-ai-research-claims-to-be-getting-closer-to-modeling-human-brain),
-[*The Turing Post*](https://www.turingpost.com/p/fod-121-300-million-to-start-a-big-promise-for-science#the-freshest-research-papers-catego),
-[*Quantum Zeitgeist*](https://quantumzeitgeist.com/palo-alto-ai-firm-pathway-unveils-post-transformer-architecture-for-autonomous-ai/),
-[*Golem*](https://www.golem.de/news/neue-ki-architektur-was-ist-baby-dragon-hatchling-2510-201047-2.html),
-and elsewhere in the media.
+#### 1. Modes (`--mode`)
+| Mode | Description |
+|------|-------------|
+| `full` | **Complete Pipeline**: Train (Stage A) + Eval (Stage B) + Viz. |
+| `train` | **Stage A Only**: Structural pre-training on historical data. |
+| `eval` | **Stage B Only**: Hebbian inference evaluation (requires checkpoint). |
+| `viz` | **Visualization**: Generate topology plots and metrics (requires checkpoint). |
+| `quick` | **Debug**: Fast 100-iteration test run. |
+| `medium` | **Balanced**: 3000 iterations (good for Kaggle/Colab). |
+| `a100` | **High-Compute**: Optimized for A100 GPUs (larger batch/model). |
+| `tech` | **Tech Sector**: Specialized preset for Technology sector (12k iters). |
 
-- Discuss and share the BDH paper on:
-[*Hugging Face Papers*](https://huggingface.co/papers/2509.26507), 
-[*Alphaxiv*](https://alphaxiv.org/abs/2509.26507),
-and [*EmergentMind*](https://emergentmind.com/papers/2509.26507).
+#### 2. Sectors (`--sector`)
+Filter the dataset to specific industries:
+*   `all` (Default)
+*   `technology`
+*   `healthcare`
+*   `financials`
+*   `energy`
 
-## Community Projects
+#### 3. Regularization (`--reg`)
+Control the structural constraints during Stage A:
+*   `both` (Default): L1 (Sparsity) + L2,1 (Modularity). **Recommended.**
+*   `l1`: Activation sparsity only.
+*   `l21`: Weight clustering only.
 
-- [adamskrodzki/bdh](https://github.com/adamskrodzki/bdh): dynamic vocabulary, stateful attention
-- [mosure/burn_dragon_hatchling](https://github.com/mosure/burn_dragon_hatchling): Burn port
-- [severian42/bdh](https://github.com/severian42/bdh): MLX port
-- [Git-Faisal/bdh](https://github.com/Git-Faisal/bdh)
-- [GrahLnn/bdh](https://github.com/GrahLnn/bdh)
+### Examples
+
+**Run full experiment on Technology sector:**
+```bash
+python pipeline.py --mode full --sector technology --reg both
+```
+
+**Train base model on all sectors:**
+```bash
+python pipeline.py --mode train --sector all
+```
+
+**Evaluate existing checkpoint:**
+```bash
+python pipeline.py --mode eval --checkpoint outputs/checkpoints/model_final.pt
+```
+
+---
+
+## 📊 Key Results
+
+Our experiments on S&P 500 transcripts demonstrate:
+
+| Metric | Result | Interpretation |
+|--------|--------|----------------|
+| **TMI (Modularity)** | **Q ≈ 0.7** | Neurons form distinct functional communities (e.g., "Risk", "Growth"). |
+| **SPS (Memory)** | **H > 0.6** | Hebbian memory persists over long contexts (Hurst exponent > 0.5). |
+| **SEC (Reasoning)** | **r > 0.2** | Higher surprise (perplexity) triggers denser brain activity. |
+
+> *See `ULTIMATE_BDH_WALKTHROUGH.md` for a deep dive into these metrics.*
+
+---
+
+## 📂 Repository Structure
+
+*   `bdh.py`: Core model architecture (RoPE, Sparse Activations).
+*   `pipeline.py`: Unified entry point for experiments.
+*   `new_dataset/`: Financial data loaders and config.
+    *   `train_finance.py`: Stage A training loop.
+    *   `evaluate_hebbian.py`: Stage B Hebbian inference.
+    *   `dragon_metrics.py`: Implementation of TMI, SPS, SEC.
+*   `ULTIMATE_BDH_WALKTHROUGH.md`: **Comprehensive technical guide.**
+
+---
+
+## 📚 Documentation
+
+*   **[ULTIMATE_BDH_WALKTHROUGH.md](ULTIMATE_BDH_WALKTHROUGH.md)**: The definitive guide to our architecture, training strategy, and results.
+*   **[Original Paper](https://doi.org/10.48550/arXiv.2509.26507)**: *The Dragon Hatchling: The Missing Link between the Transformer and Models of the Brain*.
+
+---
+
+## 🖼️ Visualizations
+
+*(Placeholders for your images - add them to the `figs/` directory)*
+
+<img src="figs/architecture.png" width="600" alt="BDH Architecture"/>
+
+---
 
 ## Acknowledgements
-We thank Andrej Karpathy for the [nanoGPT](https://github.com/karpathy/nanoGPT/) code and the tiny Shapespeare dataset used in this demonstration.
 
-BDH research stands at the intersection of **AI architecture**, **biological learning models**, and **theoretical computer science**—an effort to map the *equations of reasoning* between artificial and biological intelligence.
+Based on the original BDH implementation by [Pathway](https://pathway.com). Adapted for the **Synaptix Frontier AI Challenge (Track 2)**.

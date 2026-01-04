@@ -78,31 +78,7 @@
 
 ### 2.1 The BDH Forward Pass
 
-```mermaid
-graph TD
-    subgraph "Input Processing"
-        A[Input Tokens idx] --> B[Embedding Lookup]
-        B --> C["LayerNorm (affine=False)"]
-    end
-    
-    subgraph "BDH Layer (×4)"
-        C --> D["Encoder: x @ encoder → x_latent"]
-        D --> E["ReLU → x_sparse (SPARSE!)"]
-        E --> F["RoPE Attention (Q=K=x_sparse)"]
-        F --> G["LayerNorm → yKV"]
-        G --> H["Value Encoding: yKV @ encoder_v"]
-        H --> I["ReLU → y_sparse"]
-        I --> J["Gating: x_sparse ⊙ y_sparse"]
-        J --> K["Decoder MLP"]
-        K --> L["Residual + LayerNorm"]
-        L --> C
-    end
-    
-    subgraph "Output"
-        L --> M["lm_head → Logits"]
-        M --> N["CrossEntropy Loss"]
-    end
-```
+![BDH Forward Pass](figs/walkthrough/bdh_forward_pass.png)
 
 ### 2.2 Key Components Explained
 
@@ -997,103 +973,19 @@ Future work could compare both.
 
 ### A. Complete System Architecture
 
-```mermaid
-flowchart TB
-    subgraph "Stage A: Pre-training"
-        D1[("S&P 500 Transcripts<br/>(2005-2018)")] --> TOK[GPT-2 Tokenizer]
-        TOK --> DL[DataLoader<br/>batch=16, block=512]
-        DL --> FWD[BDH Forward Pass]
-        FWD --> LOSS["Loss = CE + λ₁L₁ + λ₂₁L₂₁"]
-        LOSS --> BWD[Backpropagation]
-        BWD --> OPT[AdamW + Cosine LR]
-        OPT --> FWD
-    end
-    
-    subgraph "Stage B: Hebbian Inference"
-        D2[("Test Transcripts<br/>(2019-2024)")] --> TOK2[GPT-2 Tokenizer]
-        TOK2 --> DL2[DataLoader]
-        DL2 --> HFWD[HebbianBDH Forward]
-        HFWD --> HEBB["Hebbian Update<br/>σ = 0.99σ + 0.005·corr"]
-        HEBB --> SNAP[σ Snapshot<br/>every 100 tokens]
-        SNAP --> METRICS[Compute Metrics]
-    end
-    
-    subgraph "Frontier Metrics"
-        METRICS --> TMI[TMI: Modularity Q]
-        METRICS --> SPS[SPS: Hurst H]
-        METRICS --> SEC[SEC: Correlation r]
-    end
-    
-    OPT --> |Checkpoint| HFWD
-```
+![Complete System Architecture](figs/walkthrough/system_architecture.png)
 
 ### B. BDH Layer Internal Structure
 
-```mermaid
-flowchart LR
-    subgraph "BDH Layer"
-        X[x] --> ENC["Encoder<br/>(D→N)"]
-        ENC --> RELU1["ReLU<br/>→ x_sparse"]
-        RELU1 --> ROPE[RoPE Attention]
-        ROPE --> LN1[LayerNorm]
-        LN1 --> ENCV["Encoder_v<br/>(D→N)"]
-        ENCV --> RELU2["ReLU<br/>→ y_sparse"]
-        RELU2 --> GATE["Gate<br/>x_sparse ⊙ y_sparse"]
-        GATE --> DROP[Dropout]
-        DROP --> DEC["Decoder<br/>(N·nh→D)"]
-        DEC --> LN2[LayerNorm]
-        LN2 --> ADD["Residual<br/>x + y"]
-        ADD --> LN3[LayerNorm]
-    end
-    
-    X -.-> ADD
-```
+![BDH Layer Internal Structure](figs/walkthrough/bdh_layer_structure.png)
 
 ### C. Hebbian Synaptic Update Flow
 
-```mermaid
-sequenceDiagram
-    participant T as Token Stream
-    participant B as BDH Layer
-    participant S as σ Matrix
-    participant M as Memory
-    
-    T->>B: token[t]
-    B->>B: x_sparse = ReLU(x @ encoder)
-    B->>S: correlation = x_mean ⊗ x_mean
-    S->>S: σ = 0.99σ + 0.005·correlation
-    S->>M: Store snapshot every 100 tokens
-    B->>T: output[t]
-    
-    Note over S: σ encodes "neurons that<br/>fire together, wire together"
-    Note over M: Used for SPS<br/>Hurst computation
-```
+![Hebbian Synaptic Update Flow](figs/walkthrough/hebbian_update_flow.png)
 
 ### D. Metric Computation Pipeline
 
-```mermaid
-flowchart TB
-    subgraph "TMI Computation"
-        W1[decoder] --> MUL["W_eff = dec @ enc.T"]
-        W2[encoder] --> MUL
-        MUL --> SPARSE["Sparsify<br/>top 2.3%"]
-        SPARSE --> GRAPH[NetworkX Graph]
-        GRAPH --> LOUV[Louvain Detection]
-        LOUV --> Q[Modularity Q]
-    end
-    
-    subgraph "SPS Computation"
-        S1[σ snapshots] --> ACF["Autocorrelation<br/>corr(σ_t, σ_{t+k})"]
-        ACF --> LOGLOG["Log-log regression"]
-        LOGLOG --> HURST[Hurst H]
-    end
-    
-    subgraph "SEC Computation"
-        A1[Activation Density ρ] --> CORR["Pearson<br/>correlation"]
-        P1[Perplexity PPL] --> CORR
-        CORR --> R[Correlation r]
-    end
-```
+![Metric Computation Pipeline](figs/walkthrough/metric_pipeline.png)
 
 ---
 
