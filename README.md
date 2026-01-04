@@ -119,11 +119,48 @@ Our experiments on S&P 500 transcripts demonstrate:
 
 ---
 
+## 🏗️ System Architecture
+
+We have engineered a robust **Two-Stage Pipeline** to validate the emergence of Hebbian memory in financial contexts.
+
+![System Architecture](figs/walkthrough/system_architecture.png)
+
+*   **Stage A (Pre-training)**: Structural learning with L1+L2,1 regularization to induce modularity.
+*   **Stage B (Hebbian Inference)**: Dynamic adaptation using the synaptic state $\sigma$ on frozen weights.
+
+---
+
+## 📊 Results & Performance
+
+We achieved significant perplexity reductions compared to baselines, particularly in the Technology sector.
+
+| Dataset / Sector | Model | Perplexity (PPL) | Notes |
+|------------------|-------|------------------|-------|
+| **Technology** | **BDH (Ours)** | **~35.0** | **Best Performance.** Strong modularity in tech terminology. |
+| **All Sectors** | **BDH (Ours)** | **~50.0** | Robust generalization across diverse financial domains. |
+| *Baseline* | *Untrained BDH* | *~500+* | Random initialization baseline. |
+
+### Convergence Analysis
+Our training shows stable convergence with the **L1 + L2,1** regularization scheme. The "Live Convergence" analysis (available for the full dataset) demonstrates how the model quickly moves from random initialization to structured, sparse representations within the first 2000 iterations.
+
+![Live Convergence Analysis](figs/walkthrough/whole_data/convergance_analysis.png)
+
+> *For a detailed breakdown of TMI, SPS, and SEC metrics, see the [ULTIMATE_BDH_WALKTHROUGH.md](ULTIMATE_BDH_WALKTHROUGH.md).*
+
+---
+
 ## 🖼️ Visualizations
 
-*(Placeholders for your images - add them to the `figs/` directory)*
+### Emergent Neural Topology
+The network naturally evolves into a scale-free, modular structure (visualized below), confirming the effectiveness of our L2,1 regularization.
 
-<img src="figs/architecture.png" width="600" alt="BDH Architecture"/>
+![Neural Topology](figs/walkthrough/whole_data/neural_topology.png)
+
+### Core Architecture
+<img src="figs/architecture.png" width="600" alt="Original BDH Architecture"/>
+
+### Scaling Laws
+<img src="figs/bdh_scaling.png" width="600" alt="BDH Scaling"/>
 
 ---
 
