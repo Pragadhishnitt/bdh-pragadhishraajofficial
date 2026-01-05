@@ -117,6 +117,8 @@ Our experiments on S&P 500 transcripts demonstrate:
 
 ## 📚 Documentation
 
+
+*   **[Research Report](https://drive.google.com/file/d/1zbe3aKujcZu7RyREJvQBUDF0AQmxP8sQ/view?usp=sharing)**: Comprehensive report of our findings, learnings and results.
 *   **[ULTIMATE_BDH_WALKTHROUGH.md](ULTIMATE_BDH_WALKTHROUGH.md)**: The definitive guide to our architecture, training strategy, and results.
 *   **[Original Paper](https://doi.org/10.48550/arXiv.2509.26507)**: *The Dragon Hatchling: The Missing Link between the Transformer and Models of the Brain*.
 
