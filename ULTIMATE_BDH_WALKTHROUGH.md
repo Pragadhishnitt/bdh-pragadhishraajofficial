@@ -1002,5 +1002,5 @@ Future work could compare both.
 
 > **Document Version**: 1.0  
 > **Last Updated**: January 2026  
-> **Authors**: BDH Competition Team
+> **Authors**: M P Pragadhish Raaj
 
