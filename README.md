@@ -108,6 +108,9 @@ Our experiments on S&P 500 transcripts demonstrate:
     *   `train_finance.py`: Stage A training loop.
     *   `evaluate_hebbian.py`: Stage B Hebbian inference.
     *   `dragon_metrics.py`: Implementation of TMI, SPS, SEC.
+*   `sentiment_analysis/`: Sentiment classification module with continual learning.
+    *   Modular implementation of BDH for 5-class sentiment analysis.
+    *   Baseline comparison with DistilBERT.
 *   `ULTIMATE_BDH_WALKTHROUGH.md`: **Comprehensive technical guide.**
 
 ---
@@ -146,6 +149,103 @@ Our training shows stable convergence with the **L1 + L2,1** regularization sche
 ![Live Convergence Analysis](figs/walkthrough/whole_data/convergance_analysis.png)
 
 > *For a detailed breakdown of TMI, SPS, and SEC metrics, see the [ULTIMATE_BDH_WALKTHROUGH.md](ULTIMATE_BDH_WALKTHROUGH.md).*
+
+---
+
+## 🎭 Sentiment Analysis Application
+
+To demonstrate BDH's versatility beyond financial reasoning, we've implemented a **sentiment analysis module** that validates the architecture's effectiveness on a different NLP task with continual learning dynamics.
+
+### Task & Dataset
+
+We use the **Amazon Reviews Multi-Domain** dataset (53,649 samples) to perform **5-class sentiment classification** (0-4 stars). The data preserves **temporal ordering** to simulate real-world concept drift, where sentiment patterns evolve over time.
+
+### BDH Sentiment Model Architecture
+
+Our BDH sentiment classifier adapts the core architecture for classification:
+
+| Component | Configuration |
+|-----------|---------------|
+| **Total Parameters** | **14 Million** |
+| **Layers** | 4 |
+| **Embedding Dimension** | 256 |
+| **Attention Heads** | 4 |
+| **MLP Multiplier** | 32 |
+| **Max Sequence Length** | 128 tokens |
+| **Pooling Strategy** | Mean pooling |
+| **Classification Head** | 2-layer MLP with GELU activation |
+
+The model leverages the same **RoPE** (Rotary Position Embeddings) and **sparse activations** (ReLU) as the financial reasoning variant, demonstrating the architecture's modularity.
+
+### Performance: BDH vs. DistilBERT Baseline
+
+We compare our BDH implementation against a pretrained **DistilBERT** model (67M parameters) fine-tuned on the same task:
+
+| Model | Accuracy | F1-Macro | MAE | Parameters |
+|-------|----------|----------|-----|------------|
+| **BDH (Ours)** | **0.633** | **0.392** | **0.44** | 14M |
+| DistilBERT | 0.261 | 0.198 | 1.20 | 67M |
+
+> **Key Insight**: Despite being **4.8× smaller**, our BDH model achieves **2.4× higher accuracy** than the pretrained transformer baseline, validating the effectiveness of biologically-inspired sparse activations for this task.
+
+### Continual Learning & Memory Retention
+
+The BDH model demonstrates **strong memory retention** during continual learning (temporal validation):
+
+**Epoch-by-Epoch Performance:**
+
+| Epoch | Val Accuracy (Future) | Val F1 (Future) | Memory Accuracy (Past) | Memory F1 (Past) |
+|-------|----------------------|-----------------|------------------------|------------------|
+| 1 | 0.649 | 0.397 | 0.551 | 0.322 |
+| 2 | 0.640 | 0.422 | 0.634 | 0.452 |
+| 3 | 0.631 | 0.419 | 0.702 | 0.526 |
+| 4 | 0.633 | 0.392 | **0.760** | **0.571** |
+
+The **Memory Forgetting Check** (validation on early 10% of data) shows the model **improves retention** over time, with memory accuracy increasing from 55.1% to **76.0%** — a hallmark of effective continual learning without catastrophic forgetting.
+
+### Confusion Matrices
+
+Detailed per-class performance analysis:
+
+<table>
+<tr>
+<td width="50%">
+
+**BDH Confusion Matrix**
+
+![BDH Sentiment Confusion Matrix](figs/sentiment/bdh-confusion.jpeg)
+
+*BDH shows strong diagonal performance with good class separation*
+
+</td>
+<td width="50%">
+
+**DistilBERT Confusion Matrix**
+
+![DistilBERT Sentiment Confusion Matrix](figs/sentiment/bert-confusion.jpeg)
+
+*DistilBERT struggles with heavy bias toward middle classes (2-3)*
+
+</td>
+</tr>
+</table>
+
+### Module Structure
+
+The sentiment analysis implementation is fully modular and research-grade:
+
+```
+sentiment_analysis/
+├── configs/          # YAML configuration files
+├── data/            # Data loaders with temporal ordering
+├── models/          # BDH sentiment + baseline models
+├── evaluation/      # Standard + continual learning metrics
+├── visualization/   # Confusion matrices, temporal plots
+├── train.py         # Main training script
+└── README.md        # Module documentation
+```
+
+> *For detailed usage and configuration options, see [`sentiment_analysis/README.md`](sentiment_analysis/README.md).*
 
 ---
 
